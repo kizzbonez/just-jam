@@ -1,0 +1,170 @@
+@import "tailwindcss";
+
+/* Design tokens. Components reference these names, never raw hex values. */
+@theme {
+  --color-carbon-950: #09090b;
+  --color-carbon-900: #121214;
+  --color-carbon-850: #161619;
+  --color-carbon-800: #1c1c20;
+  --color-well: #070708;
+  --color-etch: #27272a;
+  --color-etch-hi: #3a3a41;
+
+  --color-crimson-700: #b91c1c;
+  --color-crimson-600: #dc2626;
+  --color-crimson-500: #ef4444;
+  --color-crimson-300: #fca5a5;
+  --color-wine: #450a0a;
+  --color-wine-deep: #2a0707;
+
+  --color-ink: #f4f4f5;
+  --color-ink-soft: #c4c4cc;
+  --color-label: #8e8e98;
+  --color-steel-200: #dcdce0;
+  --color-steel-400: #9a9aa3;
+  --color-steel-600: #55555d;
+
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Barlow", ui-sans-serif, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "Cascadia Mono", monospace;
+
+  --shadow-glow: 0 0 15px rgba(239, 68, 68, 0.4);
+  --shadow-glow-sm: 0 0 6px rgba(239, 68, 68, 0.6);
+  --shadow-plate:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045), inset 0 -1px 0 rgba(0, 0, 0, 0.55),
+    0 18px 40px -24px rgba(0, 0, 0, 0.95);
+  --shadow-well:
+    inset 0 2px 5px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(0, 0, 0, 0.65),
+    0 1px 0 rgba(255, 255, 255, 0.045);
+  --shadow-key:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09), inset 0 -2px 0 rgba(0, 0, 0, 0.45),
+    0 1px 2px rgba(0, 0, 0, 0.6);
+
+  --radius-plate: 4px;
+
+  --animate-led: led-pulse 1.8s ease-in-out infinite;
+
+  @keyframes led-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: var(--color-carbon-950);
+  }
+
+  body {
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* Ventilation-grille dot field under a faint warm glow from the top edge. */
+    background:
+      radial-gradient(1100px 380px at 50% -120px, rgba(220, 38, 38, 0.11), transparent 70%),
+      radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.032) 1px, transparent 1.6px) 0 0 /
+        14px 14px,
+      var(--color-carbon-950);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: var(--color-wine);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-crimson-500);
+    outline-offset: 2px;
+  }
+
+  * {
+    scrollbar-color: var(--color-etch-hi) transparent;
+    scrollbar-width: thin;
+  }
+}
+
+/* Matte faceplate: fine vertical grain, a lit top edge and a shadowed bottom edge. */
+@utility plate {
+  background-color: var(--color-carbon-900);
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 42%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.011) 0 1px, transparent 1px 3px);
+  border: 1px solid var(--color-etch);
+  border-radius: var(--radius-plate);
+  box-shadow: var(--shadow-plate);
+}
+
+/* Recessed window that readouts, inputs and scopes sit in. */
+@utility well {
+  background-color: var(--color-well);
+  border-radius: 2px;
+  box-shadow: var(--shadow-well);
+}
+
+/* Engraved hairlines: a dark cut with a light lip beside it. */
+@utility etch-b {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.75);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+@utility etch-t {
+  border-top: 1px solid rgba(0, 0, 0, 0.75);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+@utility etch-l {
+  border-left: 1px solid rgba(0, 0, 0, 0.75);
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.045);
+}
+
+/* Silkscreen legend printed on a panel. */
+@utility silk {
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.17em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--color-label);
+}
+
+/* Frosted overlay surface for dialogs. */
+@utility glass {
+  background: rgba(18, 18, 20, 0.74);
+  backdrop-filter: blur(18px) saturate(1.25);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 40px 80px -30px rgba(0, 0, 0, 0.95);
+}
+
+/* Brushed-metal cap used by switch levers, fader caps and knobs. */
+@utility brushed {
+  background-image:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.14) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #e4e4e7 0%, #a1a1aa 46%, #6b6b74 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+@utility readout {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "zero" 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
