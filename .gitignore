@@ -1,0 +1,28 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+/build
+next-env.d.ts
+*.tsbuildinfo
+
+# generated at build time
+/src/generated/
+/public/engine/
+/relay/bin/
+
+# secrets: only the example file is committed
+.env
+.env.*
+!.env.example
+
+# testing
+/coverage
+/e2e/.tmp/
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
