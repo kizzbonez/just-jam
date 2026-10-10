@@ -1,0 +1,13 @@
+.git
+.next
+node_modules
+relay
+e2e
+docs
+coverage
+src/generated
+public/engine
+.env
+.env.*
+!.env.example
+*.md

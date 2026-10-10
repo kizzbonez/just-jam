@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum RegistrationMode {
+  OPEN
+  INVITE
+  CLOSED
+}
+
+enum RoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum ChannelMode {
+  STEREO
+  MONO_LEFT
+  MONO_RIGHT
+  MONO_SUM
+}
+
+enum AudioCodec {
+  OPUS
+  PCM16
+  PCM24
+}
+
+enum BufferMode {
+  AUTO
+  MANUAL
+}
+
+model User {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  email           String    @unique
+  passwordHash    String
+  displayName     String
+  instrument      String    @default("Guitar")
+  role            Role      @default(MEMBER)
+  avatar          Bytes?
+  avatarMime      String?
+  avatarVersion   Int       @default(0)
+  /// AES-256-GCM ciphertext, never the raw secret.
+  totpSecret      String?
+  totpEnabledAt   DateTime?
+  /// Last accepted TOTP time step, so a code cannot be replayed.
+  totpLastCounter Int?
+  failedLogins    Int       @default(0)
+  lockedUntil     DateTime?
+  disabledAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  sessions        Session[]
+  recoveryCodes   RecoveryCode[]
+  audioPreference AudioPreference?
+  rooms           Room[]
+  visits          RoomVisit[]
+}
+
+model Session {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @db.Uuid
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  userAgent  String?
+  ip         String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RecoveryCode {
+  id       String    @id @default(uuid(7)) @db.Uuid
+  userId   String    @db.Uuid
+  codeHash String
+  usedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AudioPreference {
+  userId         String      @id @db.Uuid
+  inputDeviceId  String?
+  inputLabel     String?
+  outputDeviceId String?
+  channelMode    ChannelMode @default(STEREO)
+  codec          AudioCodec  @default(OPUS)
+  /// Frame duration in microseconds: 2500, 5000, 10000 or 20000.
+  frameMicros    Int         @default(5000)
+  bitrateKbps    Int         @default(256)
+  bufferMode     BufferMode  @default(AUTO)
+  bufferMs       Int         @default(20)
+  updatedAt      DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Room {
+  id         String         @id @default(uuid(7)) @db.Uuid
+  /// Short public identifier used in the shareable URL.
+  slug       String         @unique
+  name       String
+  visibility RoomVisibility @default(PRIVATE)
+  pinHash    String?
+  hostId     String         @db.Uuid
+  maxPeers   Int            @default(6)
+  createdAt  DateTime       @default(now())
+  closedAt   DateTime?
+
+  host   User        @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  visits RoomVisit[]
+
+  @@index([hostId])
+  @@index([visibility, closedAt])
+}
+
+model RoomVisit {
+  id       String   @id @default(uuid(7)) @db.Uuid
+  roomId   String   @db.Uuid
+  userId   String   @db.Uuid
+  joinedAt DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, joinedAt])
+  @@index([roomId])
+}
+
+/// Single-row table (id = 1) holding install-wide policy.
+model StudioSettings {
+  id               Int              @id @default(1)
+  setupCompletedAt DateTime?
+  setupTokenHash   String?
+  registrationMode RegistrationMode @default(INVITE)
+  inviteCodeHash   String?
+  updatedAt        DateTime         @updatedAt
+}

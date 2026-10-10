@@ -1,0 +1,94 @@
+# ToneLink QUIC: web app + QUIC relay + PostgreSQL.
+# Every published port binds to 127.0.0.1. The database publishes none.
+name: tonelink
+
+x-hardening: &hardening
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tonelink
+      POSTGRES_DB: tonelink
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run `npm run env:init` to create .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tonelink -d tonelink"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [data]
+
+  # One-shot: applies pending migrations, then exits.
+  migrate:
+    build:
+      context: .
+      target: build
+    command: ["npx", "prisma", "migrate", "deploy"]
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://tonelink:${POSTGRES_PASSWORD}@db:5432/tonelink
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [data]
+
+  web:
+    <<: *hardening
+    build:
+      context: .
+      target: run
+    environment:
+      DATABASE_URL: postgresql://tonelink:${POSTGRES_PASSWORD}@db:5432/tonelink
+      AUTH_SECRET: ${AUTH_SECRET:?Run `npm run env:init` to create .env}
+      APP_URL: ${APP_URL:-http://127.0.0.1:3410}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      SETUP_TOKEN: ${SETUP_TOKEN:-}
+      RELAY_PUBLIC_URL: ${RELAY_PUBLIC_URL:-https://127.0.0.1:4433}
+      RELAY_ADMIN_URL: http://relay:8081
+      RELAY_SHARED_SECRET: ${RELAY_SHARED_SECRET:?Run `npm run env:init` to create .env}
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3410}:3000"
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      relay:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 4s
+      retries: 5
+      start_period: 20s
+    networks: [data, edge]
+
+  relay:
+    <<: *hardening
+    build:
+      context: ./relay
+    environment:
+      RELAY_SHARED_SECRET: ${RELAY_SHARED_SECRET}
+      RELAY_ALLOWED_ORIGINS: ${APP_URL:-http://127.0.0.1:3410},${ALLOWED_ORIGINS:-}
+      RELAY_CERT_HOSTS: ${RELAY_CERT_HOSTS:-127.0.0.1,localhost}
+    ports:
+      # WebTransport runs over HTTP/3, which is UDP only.
+      - "127.0.0.1:${RELAY_PORT:-4433}:4433/udp"
+    networks: [edge]
+
+networks:
+  # No route to the outside: only the web app and migrations can reach the database.
+  data:
+    internal: true
+  edge:
+
+volumes:
+  db-data:

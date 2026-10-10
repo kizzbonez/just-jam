@@ -1,0 +1,12 @@
+# Development only. Lets `npm run dev` on the host reach the containers:
+#   docker compose -f compose.yaml -f compose.dev.yaml up -d db relay
+# Both ports stay bound to 127.0.0.1. Do not use this overlay in production.
+services:
+  db:
+    ports:
+      - "127.0.0.1:54329:5432"
+    networks: [data, edge]
+
+  relay:
+    ports:
+      - "127.0.0.1:8081:8081"
