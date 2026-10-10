@@ -6,6 +6,32 @@ All notable changes to ToneLink QUIC are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-11
+
+Rooms and the QUIC relay. Players can open a room, share its link and be
+admitted to the relay. Audio itself arrives in 0.3.0.
+
+### Added
+
+- Go relay built on quic-go: WebTransport sessions over HTTP/3, admission by
+  short-lived signed ticket, lock-free datagram fan-out with a bounded queue
+  per receiver, and a reliable control stream for presence, state, kick and
+  room close.
+- Self-signed ECDSA relay certificate, rotated every six days, that browsers
+  pin by hash. A CA-issued certificate can be supplied instead.
+- Studio lobby: create private or public rooms with an optional PIN and a
+  player limit, join by room id or pasted link, live player counts from the
+  relay, copy-link and close-room controls for the host.
+- Room entry screen with PIN check. A correct PIN is remembered for twelve
+  hours in a cookie scoped to that room.
+- Profile page with display name, instrument tag and a profile picture that
+  is cropped and re-encoded in the browser before upload.
+- Saved audio settings (device, channel mode, codec, frame size, bitrate,
+  buffer mode) with validation that a frame fits in one datagram.
+- Session history and an owner-only studio settings page for the
+  registration policy and invite code.
+- `e2e/relay-probe.mjs`, a browser smoke test for the relay.
+
 ## [0.1.0] - 2026-10-11
 
 Foundation release: the app shell, the design system and a complete account
@@ -31,5 +57,6 @@ system. No audio yet.
 - Lint-enforced size budgets: 200 lines per file, 40 lines per function
   (60 for components), complexity 10.
 
-[Unreleased]: https://github.com/kizzbonez/just-jam/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/kizzbonez/just-jam/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/kizzbonez/just-jam/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kizzbonez/just-jam/releases/tag/v0.1.0
