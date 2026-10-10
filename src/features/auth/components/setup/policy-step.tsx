@@ -4,34 +4,13 @@ import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 import type { SetupDraft } from "@/features/auth/components/setup/setup-wizard";
 import type { RegistrationModeValue } from "@/features/auth/constants";
+import { REGISTRATION_CHOICES } from "@/features/auth/registration-choices";
 import type { EnrollmentOffer } from "@/features/auth/server/totp-enrollment";
 import { api } from "@/lib/api-client";
 import { useApiAction } from "@/lib/use-api-action";
 import { Button } from "@/ui/primitives/button";
 import { ChoiceCard } from "@/ui/primitives/choice-card";
 import { Notice } from "@/ui/primitives/notice";
-
-export const REGISTRATION_CHOICES: {
-  value: RegistrationModeValue;
-  title: string;
-  description: string;
-}[] = [
-  {
-    value: "INVITE",
-    title: "Invite only",
-    description: "New members need an invite code that you hand out. Recommended.",
-  },
-  {
-    value: "OPEN",
-    title: "Open",
-    description: "Anyone who can reach this address can create an account.",
-  },
-  {
-    value: "CLOSED",
-    title: "Closed",
-    description: "Nobody can register. Only the owner account exists.",
-  },
-];
 
 export interface PolicyStepProps {
   draft: SetupDraft;
