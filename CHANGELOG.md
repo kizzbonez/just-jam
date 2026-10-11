@@ -16,8 +16,9 @@ On the `feat/webrtc-direct` branch, for trial before it is merged.
   WebRTC data channel through the relay and sends audio straight across it, so
   the relay's distance no longer adds to their delay. The relay still seats
   players, carries room controls and forwards audio for any pair that cannot link.
-- A `P2P` or `Relay` badge on every mixer strip, a count of linked players in the
-  console header, and latency estimates that use the link's own round trip.
+- A `P2P` or `Relay` badge and the link's round trip on every mixer strip, a count
+  of linked players in the console header, and latency estimates that use the
+  link's own round trip.
 - `P2P_MODE` (`on` or `off`) and `P2P_STUN_URLS`, and `?p2p=off` on a room address
   to keep one browser on the relay.
 - `npm run e2e:p2p`: three real browsers covering linked, mixed and unlinked rooms.

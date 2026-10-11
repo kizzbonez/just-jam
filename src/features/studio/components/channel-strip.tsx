@@ -24,7 +24,7 @@ function panText(pan: number): string {
   return `${Math.round(Math.abs(pan) * 100)}% ${pan < 0 ? "left" : "right"}`;
 }
 
-/** One remote player: level, volume, pan, local mute and, for the host, removal. */
+/** One remote player: level, volume, pan, local mute, link health and, for the host, removal. */
 export function ChannelStrip({ engine, peer, latencyMs, canKick }: ChannelStripProps) {
   const { mix, slot, name } = peer;
   const tap = engine.peerTap(slot);
@@ -61,6 +61,10 @@ export function ChannelStrip({ engine, peer, latencyMs, canKick }: ChannelStripP
         <dd className="readout text-right text-xs text-ink">{formatMs(latencyMs)} ms</dd>
         <dt className="silk">Buffer</dt>
         <dd className="readout text-right text-xs text-ink">{formatMs(peer.stats?.bufferMs)} ms</dd>
+        <dt className="silk" title="Round trip over the link between your two browsers">
+          Link
+        </dt>
+        <dd className="readout text-right text-xs text-ink">{formatMs(peer.stats?.p2pRttMs)} ms</dd>
       </dl>
     </article>
   );
