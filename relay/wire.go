@@ -1,8 +1,7 @@
 package main
 
-import "github.com/quic-go/webtransport-go"
-
-// Datagram layout shared with the browser engine (src/features/studio/engine/wire.ts).
+// Packet layout shared with the browser engine (src/features/studio/engine/wire.ts).
+// The same bytes travel as a QUIC datagram or as a binary WebSocket message.
 //
 //	byte 0     type
 //	byte 1     source slot (audio: written by the relay, never trusted from clients)
@@ -22,12 +21,13 @@ const (
 	maxStateBytes  = 512
 )
 
-// Session close codes the browser maps to messages.
+// Close codes the browser maps to messages. They are valid both as
+// WebTransport session error codes and as WebSocket application close codes.
 const (
-	closeProtocol webtransport.SessionErrorCode = 4000
-	closeRoomFull webtransport.SessionErrorCode = 4001
-	closeBanned   webtransport.SessionErrorCode = 4002
-	closeKicked   webtransport.SessionErrorCode = 4003
-	closeReplaced webtransport.SessionErrorCode = 4004
-	closeRoomGone webtransport.SessionErrorCode = 4005
+	closeProtocol uint32 = 4000
+	closeRoomFull uint32 = 4001
+	closeBanned   uint32 = 4002
+	closeKicked   uint32 = 4003
+	closeReplaced uint32 = 4004
+	closeRoomGone uint32 = 4005
 )

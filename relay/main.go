@@ -1,6 +1,7 @@
-// Command relay is the ToneLink QUIC relay: a WebTransport (HTTP/3) server that
-// admits ticket holders into rooms and forwards their audio datagrams to the
-// other members. It keeps everything in memory and never decodes audio.
+// Command relay is the ToneLink QUIC relay: it admits ticket holders into
+// rooms and forwards their audio packets to the other members, over
+// WebTransport (HTTP/3 datagrams) or a WebSocket fallback. It keeps everything
+// in memory and never decodes audio.
 package main
 
 import (
@@ -50,11 +51,13 @@ func run() error {
 	hub := newHub()
 	relay := newRelay(cfg, certs, hub)
 	admin := newAdminServer(cfg, certs, hub)
+	fallback := newWebSocketServer(cfg, relay)
 
-	failed := make(chan error, 2)
+	failed := make(chan error, 3)
 	go func() { failed <- relay.wt.ListenAndServe() }()
 	go func() { failed <- admin.ListenAndServe() }()
-	slog.Info("relay listening", "webtransport", cfg.Addr, "admin", cfg.AdminAddr)
+	go func() { failed <- fallback.ListenAndServe() }()
+	slog.Info("relay listening", "webtransport", cfg.Addr, "websocket", cfg.WSAddr, "admin", cfg.AdminAddr)
 
 	select {
 	case <-ctx.Done():
@@ -66,6 +69,7 @@ func run() error {
 	shutdown, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	_ = admin.Shutdown(shutdown)
+	_ = fallback.Shutdown(shutdown)
 	return relay.wt.Close()
 }
 

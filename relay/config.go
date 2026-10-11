@@ -10,6 +10,9 @@ import (
 type Config struct {
 	// Addr is the UDP address WebTransport (HTTP/3) listens on.
 	Addr string
+	// WSAddr is the TCP address of the WebSocket fallback, plain HTTP. Put it
+	// behind something that terminates TLS, such as a reverse proxy or tunnel.
+	WSAddr string
 	// AdminAddr is the TCP address of the internal admin API. Never publish it.
 	AdminAddr string
 	// Secret verifies room tickets and guards the admin API.
@@ -54,6 +57,7 @@ func loadConfig() (*Config, error) {
 	}
 	return &Config{
 		Addr:           envOr("RELAY_ADDR", ":4433"),
+		WSAddr:         envOr("RELAY_WS_ADDR", ":8082"),
 		AdminAddr:      envOr("RELAY_ADMIN_ADDR", ":8081"),
 		Secret:         []byte(secret),
 		AllowedOrigins: origins,

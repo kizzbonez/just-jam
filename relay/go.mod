@@ -3,6 +3,7 @@ module github.com/kizzbonez/tonelink/relay
 go 1.27
 
 require (
+	github.com/coder/websocket v1.8.15
 	github.com/quic-go/quic-go v0.62.0
 	github.com/quic-go/webtransport-go v0.13.0
 )

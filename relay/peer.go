@@ -2,12 +2,9 @@ package main
 
 import (
 	"encoding/json"
-	"io"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/quic-go/webtransport-go"
 )
 
 const (
@@ -33,8 +30,8 @@ type Peer struct {
 	slot   uint8
 	claims *Claims
 	room   *Room
-	// sess is nil in unit tests, which exercise room logic without a network.
-	sess *webtransport.Session
+	// link is nil in unit tests, which exercise room logic without a network.
+	link link
 
 	// out and ctrl decouple this peer's writes from whoever is sending to it, so
 	// one slow receiver can never stall the rest of the room.
@@ -51,9 +48,9 @@ type Peer struct {
 	once sync.Once
 }
 
-func newPeer(sess *webtransport.Session, claims *Claims) *Peer {
+func newPeer(conn link, claims *Claims) *Peer {
 	return &Peer{
-		sess:   sess,
+		link:   conn,
 		claims: claims,
 		out:    make(chan []byte, datagramBacklog),
 		ctrl:   make(chan []byte, controlBacklog),
@@ -97,40 +94,33 @@ func (p *Peer) sendControl(message any) {
 	}
 }
 
-func (p *Peer) close(code webtransport.SessionErrorCode, reason string) {
+func (p *Peer) close(code uint32, reason string) {
 	p.once.Do(func() {
 		close(p.done)
-		if p.sess != nil {
-			_ = p.sess.CloseWithError(code, reason)
+		if p.link != nil {
+			p.link.close(code, reason)
 		}
 	})
 }
 
-func (p *Peer) closeSoon(code webtransport.SessionErrorCode, reason string) {
+func (p *Peer) closeSoon(code uint32, reason string) {
 	time.AfterFunc(closeGrace, func() { p.close(code, reason) })
 }
 
-func (p *Peer) writeDatagrams() {
-	for {
-		select {
-		case <-p.done:
-			return
-		case b := <-p.out:
-			// An oversized datagram is an error for that packet only.
-			if err := p.sess.SendDatagram(b); err != nil && p.sess.Context().Err() != nil {
-				return
-			}
-		}
-	}
-}
-
-func (p *Peer) writeControl(w io.Writer) {
+// writeLoop is the only goroutine that writes to this peer's connection.
+func (p *Peer) writeLoop() {
 	for {
 		select {
 		case <-p.done:
 			return
 		case line := <-p.ctrl:
-			if _, err := w.Write(line); err != nil {
+			if p.link.sendControl(line) != nil {
+				return
+			}
+		case b := <-p.out:
+			// A packet that cannot be sent, for example one too large for the
+			// path, is dropped. Only a dead connection ends the loop.
+			if p.link.sendDatagram(b) != nil && !p.link.alive() {
 				return
 			}
 		}

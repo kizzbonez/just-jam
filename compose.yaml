@@ -52,6 +52,7 @@ services:
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
       SETUP_TOKEN: ${SETUP_TOKEN:-}
       RELAY_PUBLIC_URL: ${RELAY_PUBLIC_URL:-https://127.0.0.1:4433}
+      RELAY_WS_URL: ${RELAY_WS_URL:-}
       RELAY_ADMIN_URL: http://relay:8081
       RELAY_SHARED_SECRET: ${RELAY_SHARED_SECRET:?Run `npm run env:init` to create .env}
     ports:
@@ -84,6 +85,9 @@ services:
       # WebTransport runs over HTTP/3, which is UDP only, so no HTTP tunnel can
       # carry it. RELAY_BIND=0.0.0.0 opens it to other machines.
       - "${RELAY_BIND:-127.0.0.1}:${RELAY_PORT:-4433}:4433/udp"
+      # WebSocket fallback, plain HTTP on localhost. Point an HTTPS tunnel or
+      # reverse proxy at it and set RELAY_WS_URL to the public wss:// address.
+      - "127.0.0.1:${RELAY_WS_PORT:-4434}:8082"
     networks: [edge]
 
 networks:

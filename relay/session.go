@@ -22,8 +22,8 @@ const (
 	keepAlive            = 5 * time.Second
 )
 
-// Relay is the WebTransport front door: it admits ticket holders and then
-// forwards their datagrams to the rest of their room.
+// Relay is the front door: it admits ticket holders, over WebTransport or the
+// WebSocket fallback, and then forwards their packets to the rest of their room.
 type Relay struct {
 	cfg *Config
 	hub *Hub
@@ -64,10 +64,19 @@ func (r *Relay) checkOrigin(req *http.Request) bool {
 	return r.cfg.AllowedOrigins[req.Header.Get("Origin")]
 }
 
-func (r *Relay) handleJam(w http.ResponseWriter, req *http.Request) {
+// admit checks the room ticket on an incoming request.
+func (r *Relay) admit(w http.ResponseWriter, req *http.Request) *Claims {
 	claims, err := verifyTicket(req.URL.Query().Get("ticket"), r.cfg.Secret, time.Now())
 	if err != nil {
 		http.Error(w, "invalid ticket", http.StatusUnauthorized)
+		return nil
+	}
+	return claims
+}
+
+func (r *Relay) handleJam(w http.ResponseWriter, req *http.Request) {
+	claims := r.admit(w, req)
+	if claims == nil {
 		return
 	}
 	sess, err := r.wt.Upgrade(w, req)
@@ -75,10 +84,30 @@ func (r *Relay) handleJam(w http.ResponseWriter, req *http.Request) {
 		slog.Warn("upgrade failed", "err", err)
 		return
 	}
-	r.serve(sess, claims)
+	ctx := sess.Context()
+	acceptCtx, cancel := context.WithTimeout(ctx, controlAcceptTimeout)
+	stream, err := sess.AcceptStream(acceptCtx)
+	cancel()
+	if err != nil {
+		_ = sess.CloseWithError(webtransport.SessionErrorCode(closeProtocol), "expected a control stream")
+		return
+	}
+	peer := r.join(&wtLink{sess: sess, stream: stream}, claims, "quic")
+	if peer == nil {
+		return
+	}
+	defer r.leave(peer)
+	go r.readControlStream(peer, stream)
+	for {
+		b, err := sess.ReceiveDatagram(ctx)
+		if err != nil {
+			return
+		}
+		r.handlePacket(peer, b)
+	}
 }
 
-func closeCodeFor(err error) webtransport.SessionErrorCode {
+func closeCodeFor(err error) uint32 {
 	switch {
 	case errors.Is(err, errRoomFull):
 		return closeRoomFull
@@ -89,85 +118,91 @@ func closeCodeFor(err error) webtransport.SessionErrorCode {
 	}
 }
 
-// serve runs one participant from admission until their session ends.
-func (r *Relay) serve(sess *webtransport.Session, claims *Claims) {
-	ctx := sess.Context()
-	acceptCtx, cancel := context.WithTimeout(ctx, controlAcceptTimeout)
-	stream, err := sess.AcceptStream(acceptCtx)
-	cancel()
-	if err != nil {
-		_ = sess.CloseWithError(closeProtocol, "expected a control stream")
-		return
-	}
-	peer := newPeer(sess, claims)
+// join seats a new connection in its room and starts its writer. It returns
+// nil, having closed the connection with the reason, when the room refuses.
+func (r *Relay) join(conn link, claims *Claims, transport string) *Peer {
+	peer := newPeer(conn, claims)
 	if err := r.hub.Join(peer); err != nil {
-		_ = sess.CloseWithError(closeCodeFor(err), err.Error())
-		return
+		conn.close(closeCodeFor(err), err.Error())
+		return nil
 	}
-	slog.Info("peer joined", "room", claims.Room, "slot", peer.slot)
-	defer func() {
-		r.hub.Leave(peer, "left")
-		peer.close(closeProtocol, "session ended")
-		slog.Info("peer left", "room", claims.Room, "slot", peer.slot, "dropped", peer.dropped.Load())
-	}()
-	go peer.writeControl(stream)
-	go peer.writeDatagrams()
-	go r.readControl(peer, stream)
-	r.pump(ctx, peer)
+	slog.Info("peer joined", "room", claims.Room, "slot", peer.slot, "transport", transport)
+	go peer.writeLoop()
+	return peer
 }
 
-// pump is the hot path: one goroutine per sender, no locks, no allocation
-// beyond what the QUIC stack does for the datagram itself.
-func (r *Relay) pump(ctx context.Context, peer *Peer) {
-	for {
-		b, err := peer.sess.ReceiveDatagram(ctx)
-		if err != nil {
+func (r *Relay) leave(peer *Peer) {
+	r.hub.Leave(peer, "left")
+	peer.close(closeProtocol, "session ended")
+	slog.Info("peer left", "room", peer.claims.Room, "slot", peer.slot, "dropped", peer.dropped.Load())
+}
+
+// handlePacket is the hot path: no locks, and no allocation beyond what the
+// transport does for the packet itself.
+func (r *Relay) handlePacket(peer *Peer, b []byte) {
+	if len(b) < 2 || len(b) > maxDatagramLen {
+		return
+	}
+	switch b[0] {
+	case typePing:
+		b[0] = typePong
+		peer.sendDatagram(b)
+	case typeAudio:
+		if len(b) < audioHeaderLen || peer.gone.Load() {
 			return
 		}
-		if len(b) < 2 || len(b) > maxDatagramLen {
-			continue
-		}
-		switch b[0] {
-		case typePing:
-			b[0] = typePong
-			peer.sendDatagram(b)
-		case typeAudio:
-			if len(b) < audioHeaderLen || peer.gone.Load() {
-				continue
-			}
-			b[1] = peer.slot
-			for _, other := range *peer.room.fanout.Load() {
-				if other != peer {
-					other.sendDatagram(b)
-				}
+		b[1] = peer.slot
+		for _, other := range *peer.room.fanout.Load() {
+			if other != peer {
+				other.sendDatagram(b)
 			}
 		}
 	}
 }
 
-func (r *Relay) readControl(peer *Peer, stream *webtransport.Stream) {
+// controlLimiter allows a fixed number of control messages per second.
+type controlLimiter struct {
+	windowStart time.Time
+	count       int
+}
+
+func (l *controlLimiter) allow() bool {
+	if time.Since(l.windowStart) > time.Second {
+		l.windowStart, l.count = time.Now(), 0
+	}
+	l.count++
+	return l.count <= controlRatePerSecond
+}
+
+// handleControl applies one control message. It returns false when the peer
+// has exceeded the rate limit and has been disconnected.
+func (r *Relay) handleControl(peer *Peer, line []byte, limiter *controlLimiter) bool {
+	if !limiter.allow() {
+		peer.close(closeProtocol, "control rate exceeded")
+		return false
+	}
+	var message controlIn
+	if json.Unmarshal(line, &message) != nil {
+		return true
+	}
+	switch message.T {
+	case "state":
+		r.hub.SetState(peer, message.State)
+	case "kick":
+		if r.hub.Kick(peer, message.Slot) {
+			slog.Info("peer kicked", "room", peer.claims.Room, "slot", message.Slot)
+		}
+	}
+	return true
+}
+
+func (r *Relay) readControlStream(peer *Peer, stream *webtransport.Stream) {
 	scanner := bufio.NewScanner(stream)
 	scanner.Buffer(make([]byte, 0, 512), maxControlLine)
-	windowStart, count := time.Now(), 0
+	limiter := &controlLimiter{}
 	for scanner.Scan() {
-		if time.Since(windowStart) > time.Second {
-			windowStart, count = time.Now(), 0
-		}
-		if count++; count > controlRatePerSecond {
-			peer.close(closeProtocol, "control rate exceeded")
+		if !r.handleControl(peer, scanner.Bytes(), limiter) {
 			return
-		}
-		var message controlIn
-		if json.Unmarshal(scanner.Bytes(), &message) != nil {
-			continue
-		}
-		switch message.T {
-		case "state":
-			r.hub.SetState(peer, message.State)
-		case "kick":
-			if r.hub.Kick(peer, message.Slot) {
-				slog.Info("peer kicked", "room", peer.claims.Room, "slot", message.Slot)
-			}
 		}
 	}
 }
