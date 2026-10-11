@@ -11,6 +11,11 @@
  *
  * It rises at once and falls slowly, because a buffer that is briefly too
  * large costs a few milliseconds while one that is too small is a dropout.
+ *
+ * The one exception is a stream that has just started. Nothing is known about
+ * its timing yet, so it begins with generous headroom, and as soon as it has
+ * been measured for a couple of seconds the target drops straight to what was
+ * measured, instead of easing down for a quarter of a minute.
  */
 import { MAX_BUFFER_MS, SAMPLE_RATE } from "@/features/studio/audio-profile";
 
@@ -22,10 +27,16 @@ const MAX_PENALTY_MS = 40;
 const PENALTY_DECAY_MS_PER_S = 0.4;
 const RELEASE_MS_PER_S = 1.5;
 const INITIAL_HEADROOM_MS = 24;
+/** How long a new stream is measured before its starting headroom is cut. */
+const SETTLE_SECONDS = 2;
+/** Kept above the measured need at that moment, then released at the usual rate. */
+const SETTLE_CUSHION_MS = 3;
 
 export interface TunerState {
   targetMs: number;
   penaltyMs: number;
+  /** Seconds until a new stream's starting headroom is cut. Zero once that has happened. */
+  settleS: number;
 }
 
 export interface TunerInput {
@@ -49,7 +60,8 @@ export function structuralFloorMs(frameMs: number): number {
  * second, while guessing high costs a few extra milliseconds for a few seconds.
  */
 export function initialTuner(frameMs: number): TunerState {
-  return { targetMs: structuralFloorMs(frameMs) + INITIAL_HEADROOM_MS, penaltyMs: 0 };
+  const targetMs = structuralFloorMs(frameMs) + INITIAL_HEADROOM_MS;
+  return { targetMs, penaltyMs: 0, settleS: SETTLE_SECONDS };
 }
 
 export function stepTuner(state: TunerState, input: TunerInput): TunerState {
@@ -58,10 +70,14 @@ export function stepTuner(state: TunerState, input: TunerInput): TunerState {
   const floor = structuralFloorMs(input.frameMs);
   const wanted = floor + input.latenessMs * LATENESS_HEADROOM + MARGIN_MS + penaltyMs;
   const ceiling = Math.max(floor, MAX_BUFFER_MS);
-  const release = state.targetMs - RELEASE_MS_PER_S * input.elapsedSeconds;
+  const settleS = Math.max(0, state.settleS - input.elapsedSeconds);
+  const eased = state.targetMs - RELEASE_MS_PER_S * input.elapsedSeconds;
+  // The measuring period of a new stream has just ended: go straight to what it needs.
+  const settledNow = state.settleS > 0 && settleS === 0;
+  const lowered = settledNow ? Math.min(eased, wanted + SETTLE_CUSHION_MS) : eased;
   // Up immediately, down no faster than the release rate.
-  const targetMs = Math.min(ceiling, Math.max(wanted, release));
-  return { targetMs, penaltyMs };
+  const targetMs = Math.min(ceiling, Math.max(wanted, lowered));
+  return { targetMs, penaltyMs, settleS };
 }
 
 /** Manual mode: the player's value, held above the point where nothing can play. */

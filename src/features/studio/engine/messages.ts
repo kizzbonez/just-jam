@@ -133,4 +133,5 @@ export type PlaybackCommand =
   | { pcm: Float32Array; frames: number }
   | { conceal: number }
   | { target: number; frame: number }
+  | { trim: true }
   | { reset: true };

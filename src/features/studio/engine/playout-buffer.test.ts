@@ -98,6 +98,34 @@ describe("PlayoutBuffer", () => {
     expect(buffer.fill).toBeLessThanOrEqual(240 + FRAME);
   });
 
+  it("drops the excess at once when asked to trim to a lowered target", () => {
+    const buffer = new PlayoutBuffer(8192, 1440);
+    buffer.configure(1440, FRAME);
+    run(buffer, 1500);
+    const before = buffer.takeStats();
+    expect(Math.abs(before.fill - 1440)).toBeLessThan(200);
+    // 14 ms less: below the margin that triggers a skip on its own.
+    buffer.configure(768, FRAME);
+    buffer.trim();
+    run(buffer, 4);
+    const after = buffer.takeStats();
+    expect(after.skips).toBe(before.skips + 1);
+    expect(after.playing).toBe(true);
+    expect(after.underruns).toBe(before.underruns);
+    expect(Math.abs(after.fill - 768)).toBeLessThan(200);
+  });
+
+  it("leaves the audio alone when there is nothing worth trimming", () => {
+    const buffer = new PlayoutBuffer(8192, 960);
+    buffer.configure(960, FRAME);
+    buffer.trim();
+    run(buffer, 1500);
+    const before = buffer.takeStats();
+    buffer.trim();
+    run(buffer, 4);
+    expect(buffer.takeStats().skips).toBe(before.skips);
+  });
+
   it("speeds up slightly when the sender's clock runs fast", () => {
     const buffer = new PlayoutBuffer(8192, 480);
     buffer.configure(480, FRAME);

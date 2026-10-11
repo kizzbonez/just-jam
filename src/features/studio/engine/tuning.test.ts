@@ -82,6 +82,31 @@ describe("stepTuner", () => {
     expect(state.targetMs).toBeGreaterThan(structuralFloorMs(FRAME_MS) + 12);
   });
 
+  it("keeps a new stream's starting headroom while it is being measured", () => {
+    const start = initialTuner(FRAME_MS);
+    const early = settle(start, 2, 1.75);
+    expect(early.settleS).toBeGreaterThan(0);
+    expect(early.targetMs).toBeGreaterThan(structuralFloorMs(FRAME_MS) + 20);
+  });
+
+  it("cuts straight to the measured need once a new stream has been measured", () => {
+    const need = structuralFloorMs(FRAME_MS) + 2 * 1.15 + 1;
+    const settled = settle(initialTuner(FRAME_MS), 2, 2);
+    expect(settled.settleS).toBe(0);
+    // A few seconds of easing would still be about 20 ms above the floor here.
+    expect(settled.targetMs).toBeLessThan(need + 3.5);
+    expect(settled.targetMs).toBeGreaterThanOrEqual(need);
+    expect(settle(settled, 2, 3).targetMs).toBeCloseTo(need, 5);
+  });
+
+  it("cuts only once: later rises still fall slowly", () => {
+    const settled = settle(initialTuner(FRAME_MS), 0, 10);
+    const step = { frameMs: FRAME_MS, underruns: 0, elapsedSeconds: 0.25 };
+    const spiked = stepTuner(settled, { ...step, latenessMs: 30 });
+    const after = settle(spiked, 0, 2);
+    expect(spiked.targetMs - after.targetMs).toBeCloseTo(3, 1);
+  });
+
   it("rises at once and falls slowly", () => {
     const calm = settle(initialTuner(FRAME_MS), 0, 30);
     const step = { frameMs: FRAME_MS, underruns: 0, elapsedSeconds: 0.25 };

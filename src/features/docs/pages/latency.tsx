@@ -146,6 +146,12 @@ function Buffer() {
         small is a gap in the music.
       </P>
       <P>
+        A player who has just started sending, unmuted or changed a setting is given a generous
+        buffer for two seconds while their timing is measured. It is then cut to what was measured
+        in one step, which you may notice as a single tiny skip, and the latency figure settles
+        there.
+      </P>
+      <P>
         Turn it off to set one <Strong>fixed size</Strong> for everyone. Lower it until the
         Dropouts counter starts to climb, then back off a few milliseconds.
       </P>

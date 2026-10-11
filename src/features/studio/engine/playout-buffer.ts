@@ -11,8 +11,9 @@
  *  - when it drifts from the target (two sound cards never run at exactly the
  *    same rate) the read speed is nudged by at most 0.2%, about 3.5 cents,
  *    which is below what a listener hears as a change of pitch;
- *  - when it is far over the target after a network stall, the excess is
- *    dropped with a short crossfade so latency cannot creep.
+ *  - when it is far over the target after a network stall, or when the target
+ *    has just been cut, the excess is dropped with a short crossfade so latency
+ *    cannot linger.
  *
  * The audio path does not allocate.
  */
@@ -157,12 +158,8 @@ export class PlayoutBuffer {
     // Judged on the smoothed fill: a burst of arrivals between two reads is
     // normal, audio piling up for a third of a second is not.
     if (this.smoothFill - this.target > this.skipMargin) {
-      this.fadeFrom = Math.round(this.readPos);
-      this.readPos = this.writeIndex - this.target - frames;
+      this.jumpTo(this.target + frames);
       this.smoothFill = this.fill;
-      this.fadeLeft = FADE;
-      this.rate = 1;
-      this.skips++;
       return;
     }
     const error = this.smoothFill - this.target;
@@ -174,6 +171,27 @@ export class PlayoutBuffer {
     }
     const offset = (error / 48_000) * DRIFT_GAIN;
     this.rate = 1 + Math.max(-MAX_RATE_OFFSET, Math.min(MAX_RATE_OFFSET, offset));
+  }
+
+  /** Moves the reader ahead so that `keep` samples stay queued, crossfading from where it was. */
+  private jumpTo(keep: number): void {
+    this.fadeFrom = Math.round(this.readPos);
+    this.readPos = this.writeIndex - keep;
+    this.fadeLeft = FADE;
+    this.rate = 1;
+    this.skips++;
+  }
+
+  /**
+   * Drops what is queued beyond the target right away, where the read rate
+   * would take seconds to work it off. Measured on the smoothed fill, so the
+   * arrival of a burst just before the call does not count as excess.
+   */
+  trim(): void {
+    const excess = Math.round(this.smoothFill - this.target);
+    if (!this.playing || excess <= this.deadband) return;
+    this.jumpTo(this.fill - excess);
+    this.smoothFill = this.target;
   }
 
   private render(outLeft: Float32Array, outRight: Float32Array): void {

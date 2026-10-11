@@ -114,7 +114,8 @@ export class Receiver {
     // Arrival timing is unknown again, so fall back to the generous starting
     // buffer and tell the worklet now, not at the next stats tick.
     const fresh = initialTuner(frameMs);
-    this.tuner = { ...this.tuner, targetMs: Math.max(this.tuner.targetMs, fresh.targetMs) };
+    const targetMs = Math.max(this.tuner.targetMs, fresh.targetMs);
+    this.tuner = { ...this.tuner, targetMs, settleS: fresh.settleS };
     this.sendTarget(this.currentTarget());
   }
 
@@ -135,9 +136,12 @@ export class Receiver {
   tick(elapsedSeconds: number): ReceiverStats {
     const { underruns, fill, skips, playing, rate } = this.playout;
     const latenessMs = this.jitter.latenessQuantile(0.99);
+    const settling = this.tuner.settleS > 0;
     const targetMs = this.nextTarget(latenessMs, underruns - this.seenUnderruns, elapsedSeconds);
     this.seenUnderruns = underruns;
     if (Math.abs(targetMs - this.sentTargetMs) >= RETARGET_STEP_MS) this.sendTarget(targetMs);
+    // The starting headroom has just been cut: drop the audio queued beyond the new target.
+    if (settling && this.tuner.settleS === 0) this.post({ trim: true });
     const delta = this.rollCounters();
     this.trackLoss(delta);
     return {

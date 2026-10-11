@@ -6,6 +6,18 @@ All notable changes to ToneLink QUIC are recorded here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0-beta.2] - 2026-10-11
+
+### Changed
+
+- The adaptive jitter buffer settles in two seconds instead of about sixteen. A
+  stream that has just started still gets 24 ms of headroom while its timing is
+  measured, but the buffer is then cut to the measured need in one step, with a
+  single crossfaded skip, instead of easing down at 1.5 ms a second. Arming,
+  unmuting, changing codec or frame size and switching between relay and link
+  all restart a stream, so each of them used to cost a quarter of a minute of
+  extra latency.
+
 ## [1.2.0-beta.1] - 2026-10-11
 
 On the `feat/webrtc-direct` branch, for trial before it is merged.
@@ -247,7 +259,8 @@ system. No audio yet.
 - Lint-enforced size budgets: 200 lines per file, 40 lines per function
   (60 for components), complexity 10.
 
-[Unreleased]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.1...HEAD
+[Unreleased]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.2...HEAD
+[1.2.0-beta.2]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.1...v1.2.0-beta.2
 [1.2.0-beta.1]: https://github.com/kizzbonez/tonelink/compare/v1.1.1...v1.2.0-beta.1
 [1.1.1]: https://github.com/kizzbonez/tonelink/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/kizzbonez/tonelink/compare/v1.0.0...v1.1.0

@@ -36,6 +36,8 @@ class PlaybackProcessor extends AudioWorkletProcessor {
       this.buffer.conceal(command.conceal);
     } else if ("target" in command) {
       this.buffer.configure(command.target, command.frame);
+    } else if ("trim" in command) {
+      this.buffer.trim();
     } else {
       this.buffer.reset();
     }
