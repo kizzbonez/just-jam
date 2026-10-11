@@ -2,6 +2,21 @@ import { z } from "zod";
 
 const blankToUndefined = (value: unknown) => (value === "" ? undefined : value);
 
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * True for an encrypted WebSocket address. An unencrypted one is accepted only
+ * on this machine, where the traffic never crosses a network.
+ */
+export function isSafeSocketUrl(value: string): boolean {
+  try {
+    const { protocol, hostname } = new URL(value);
+    return protocol === "wss:" || (protocol === "ws:" && LOOPBACK_HOSTS.has(hostname));
+  } catch {
+    return false;
+  }
+}
+
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1),
   /** Signs session cookies and derives the key that encrypts TOTP secrets. */
@@ -20,7 +35,7 @@ const EnvSchema = z.object({
     blankToUndefined,
     z
       .url()
-      .refine((value) => /^wss?:\/\//.test(value), "must start with ws:// or wss://")
+      .refine(isSafeSocketUrl, "must be a wss address; plain ws is accepted for this machine only")
       .optional(),
   ),
   /**

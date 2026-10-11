@@ -31,6 +31,9 @@ On the `feat/webrtc-direct` branch, for trial before it is merged.
 
 ### Security
 
+- `RELAY_WS_URL` must now be a `wss://` address. Plain `ws://` is accepted only
+  for this machine (`localhost`, `127.0.0.1`), so tickets and audio cannot be sent
+  unencrypted across a network by a configuration mistake.
 - A link is a direct connection, so each of the two players learns the other's
   public address, and each browser asks a STUN server (Google and Cloudflare by
   default) for its own. `P2P_MODE=off` turns links off.
@@ -77,6 +80,10 @@ and fixes found by putting the studio behind a CDN.
 
 ### Security
 
+- `RELAY_WS_URL` must now be a `wss://` address. Plain `ws://` is accepted only
+  for this machine (`localhost`, `127.0.0.1`), so tickets and audio cannot be sent
+  unencrypted across a network by a configuration mistake.
+
 - AES-GCM calls pin the authentication tag length.
 - The web image has its own HEALTHCHECK.
 
@@ -113,6 +120,10 @@ everything needed to put the studio on a public hostname.
   staying under a fixed number of milliseconds.
 
 ### Security
+
+- `RELAY_WS_URL` must now be a `wss://` address. Plain `ws://` is accepted only
+  for this machine (`localhost`, `127.0.0.1`), so tickets and audio cannot be sent
+  unencrypted across a network by a configuration mistake.
 
 - The runtime web image no longer contains npm, which removed eight high
   severity findings in modules that never ran there.
