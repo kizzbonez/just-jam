@@ -3,50 +3,53 @@ import { SESSION_COOKIE } from "@/features/auth/constants";
 import { readSessionToken } from "@/features/auth/server/session-token";
 import { isSecureOrigin } from "@/lib/env";
 import { contentSecurityPolicy } from "@/lib/http/csp";
-
-const PUBLIC_PAGES = new Set(["/", "/login", "/register", "/setup"]);
-/** Public by prefix: a few API routes and the landing page's own images. */
-const PUBLIC_PREFIXES = [
-  "/landing/",
-  "/api/auth/login",
-  "/api/auth/mfa",
-  "/api/auth/register",
-  "/api/setup/",
-  "/api/health",
-];
-
-function isPublic(pathname: string): boolean {
-  return (
-    PUBLIC_PAGES.has(pathname) || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
-  );
-}
+import { accessFor } from "@/lib/http/route-access";
 
 async function hasSessionToken(request: NextRequest): Promise<boolean> {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   return token ? (await readSessionToken(token)) !== null : false;
 }
 
-function deny(request: NextRequest): NextResponse {
+function toLogin(request: NextRequest): NextResponse {
   const { pathname, search } = request.nextUrl;
-  if (pathname.startsWith("/api/")) {
-    const error = { code: "unauthorized", message: "Sign in to continue." };
-    return NextResponse.json({ error }, { status: 401 });
-  }
   const login = new URL("/login", request.url);
-  if (pathname !== "/" && pathname !== "/lobby") login.searchParams.set("next", pathname + search);
+  if (pathname !== "/lobby") login.searchParams.set("next", pathname + search);
   return NextResponse.redirect(login);
+}
+
+function unauthorized(): NextResponse {
+  const error = { code: "unauthorized", message: "Sign in to continue." };
+  return NextResponse.json({ error }, { status: 401 });
+}
+
+const notFound = () => new NextResponse("Not found", { status: 404 });
+
+/** The dev server's own endpoints (hot reload, error overlay) must stay reachable. */
+function isDevTooling(pathname: string): boolean {
+  if (process.env.NODE_ENV === "production") return false;
+  return pathname.startsWith("/_next/") || pathname.startsWith("/__nextjs");
+}
+
+/** What an anonymous visitor gets for a path that needs a session. */
+async function gate(request: NextRequest): Promise<NextResponse> {
+  if (isDevTooling(request.nextUrl.pathname)) return NextResponse.next();
+  const access = accessFor(request.nextUrl.pathname);
+  if (access === "blocked") return notFound();
+  if (access === "public" || (await hasSessionToken(request))) return NextResponse.next();
+  if (access === "api") return unauthorized();
+  // Only real pages lead to the sign-in screen. Anything else simply does not exist.
+  return access === "page" ? toLogin(request) : notFound();
 }
 
 /**
  * First gate in front of every page, API route and static asset: nothing but
  * the home page and the sign-in screens is served without a signed session
- * cookie. This only
- * checks the signature. Pages and route handlers then confirm the session row
- * is still live, which is what makes revocation effective.
+ * cookie. This only checks the signature. Pages and route handlers then
+ * confirm the session row is still live, which is what makes revocation
+ * effective.
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  const open = isPublic(request.nextUrl.pathname) || (await hasSessionToken(request));
-  const response = open ? NextResponse.next() : deny(request);
+  const response = await gate(request);
   response.headers.set("Content-Security-Policy", contentSecurityPolicy());
   if (isSecureOrigin()) {
     response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
