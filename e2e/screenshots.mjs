@@ -12,7 +12,7 @@ import { BASE_URL } from "./lib/env.mjs";
 import { enterRoom, launchPlayer } from "./lib/players.mjs";
 import { writeManifest } from "./lib/png.mjs";
 import { loadAllImages, rackBox, tidyMix } from "./lib/shot-helpers.mjs";
-import { call, createRoom, loadState, signInOwner, signInPlayer, studioIsFresh } from "./lib/studio.mjs";
+import { call, closeRoom, createRoom, loadState, signInOwner, signInPlayer, studioIsFresh } from "./lib/studio.mjs";
 import { writeRiff } from "./lib/tone.mjs";
 import { runSetupWizard } from "./lib/wizard.mjs";
 
@@ -117,6 +117,8 @@ await captureSignedOut();
 await captureOwner(state);
 
 const players = [];
+/** Rooms opened by this run, closed again at the end: [context, slug]. */
+const created = [];
 for (const member of BAND) {
   const wav = writeRiff(`e2e/.tmp/${member.role}.wav`, { notes: member.notes });
   players.push({ ...(await launchPlayer({ role: member.role, wav, viewport: VIEWPORT })), member });
@@ -128,8 +130,9 @@ try {
   }
   const [host, bass, keys] = players;
   const room = await createRoom(host.context, { name: "Thursday rehearsal", visibility: "PRIVATE", pin: "4821", maxPeers: 6 });
-  await createRoom(host.context, { name: "Open mic night", visibility: "PUBLIC", maxPeers: 8 });
-  await createRoom(bass.context, { name: "Low end clinic", visibility: "PUBLIC", maxPeers: 4 });
+  const open = await createRoom(host.context, { name: "Open mic night", visibility: "PUBLIC", maxPeers: 8 });
+  const clinic = await createRoom(bass.context, { name: "Low end clinic", visibility: "PUBLIC", maxPeers: 4 });
+  created.push([host.context, room.slug], [host.context, open.slug], [bass.context, clinic.slug]);
 
   await keys.page.goto(`${BASE_URL}/room/${room.slug}`);
   await keys.page.locator("#room-pin").waitFor();
@@ -140,6 +143,7 @@ try {
   await enterRoom(keys.page, room.slug, "4821");
   await captureConsole(host, room);
 } finally {
+  for (const [context, slug] of created) await closeRoom(context, slug).catch(() => undefined);
   for (const player of players) await player.browser.close();
 }
 

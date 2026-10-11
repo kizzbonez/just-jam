@@ -6,7 +6,7 @@
 //   docker compose up -d --build      (SETUP_TOKEN set in .env for a fresh stack)
 //   npm run e2e
 import { enterRoom, launchPlayer } from "./lib/players.mjs";
-import { call, createRoom, diagnostics, ensureStudio, signInPlayer } from "./lib/studio.mjs";
+import { call, closeRoom, createRoom, diagnostics, ensureStudio, signInPlayer } from "./lib/studio.mjs";
 import { writeStereoTone } from "./lib/tone.mjs";
 
 const TONES = {
@@ -77,6 +77,7 @@ function checkHearing(label, snapshot, { tones, kbps: expectedKbps }) {
 
 const host = await launch("host");
 const guest = await launch("guest");
+let roomSlug = null;
 try {
   const studio = await ensureStudio(host.context);
   await signInPlayer(host.context, studio, { name: "Ana Marquez", instrument: "Lead Guitar" });
@@ -90,6 +91,7 @@ try {
     pin: PIN,
     maxPeers: 4,
   });
+  roomSlug = room.slug;
   console.log(`room ${room.slug}`);
 
   await enterRoom(host.page, room.slug);
@@ -161,10 +163,18 @@ try {
     timeout: 10_000,
   });
   check("kick: host's mixer is empty again", true);
+
+  // Closing the room ends the host's own session with the reason.
+  const closed = await closeRoom(host.context, room.slug);
+  roomSlug = null;
+  check("close: host can close the room", closed.status === 200);
+  await host.page.getByText("The host closed this room.").waitFor({ timeout: 10_000 });
+  check("close: everyone in the room is told", true);
 } catch (error) {
   failures++;
   console.log("FAIL  test aborted:", error.message);
 } finally {
+  if (roomSlug) await closeRoom(host.context, roomSlug).catch(() => undefined);
   await host.browser.close();
   await guest.browser.close();
 }

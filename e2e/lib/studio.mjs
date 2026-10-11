@@ -123,6 +123,11 @@ export async function createRoom(context, room) {
   return expectOk(await call(context, "/api/rooms", { data: room }), "create room");
 }
 
+/** Closes a room as its host. Rooms are capped per host, so runs clean up after themselves. */
+export function closeRoom(context, slug) {
+  return call(context, `/api/rooms/${slug}`, { method: "DELETE" });
+}
+
 /** Reads the engine's diagnostics snapshot from a room page. */
 export function diagnostics(page) {
   return page.evaluate(() => window.__tonelink?.diagnostics() ?? null);
