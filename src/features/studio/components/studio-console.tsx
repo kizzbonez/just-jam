@@ -46,6 +46,12 @@ function LiveConsole({ engine, door, onRejoin }: LiveConsoleProps) {
     <div className="flex flex-col gap-5">
       <ConsoleHeader door={door} state={state} onLeave={() => router.push("/lobby")} />
       {state.engineError && <Notice tone="error">{state.engineError}</Notice>}
+      {state.transport === "websocket" && (
+        <Notice>
+          Connected through the WebSocket fallback. It works through any network, but it is TCP, so
+          expect higher and less steady latency than a direct QUIC connection to the relay.
+        </Notice>
+      )}
       <div className="grid items-start gap-5 lg:grid-cols-12">
         <div className="flex flex-col gap-5 lg:col-span-4">
           <InputRack engine={engine} state={state} />

@@ -12,6 +12,17 @@ const EnvSchema = z.object({
   ALLOWED_ORIGINS: z.string().default(""),
   /** WebTransport endpoint browsers connect to (HTTP/3 over UDP). */
   RELAY_PUBLIC_URL: z.url().default("https://127.0.0.1:4433"),
+  /**
+   * WebSocket fallback endpoint (wss://...), for players who cannot reach the
+   * UDP port. Unset turns the fallback off.
+   */
+  RELAY_WS_URL: z.preprocess(
+    blankToUndefined,
+    z
+      .url()
+      .refine((value) => /^wss?:\/\//.test(value), "must start with ws:// or wss://")
+      .optional(),
+  ),
   /** Relay admin API, reachable only on the internal network. */
   RELAY_ADMIN_URL: z.url().default("http://127.0.0.1:8081"),
   /** Shared with the relay: signs room tickets and guards its admin API. */

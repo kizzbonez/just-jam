@@ -1,18 +1,16 @@
 /**
- * One WebTransport session to the relay: unreliable datagrams for audio and
- * pings, plus one reliable bidirectional stream carrying newline-delimited
- * JSON for presence and control.
+ * The direct path: one WebTransport session to the relay. Unreliable datagrams
+ * carry audio and pings; one reliable bidirectional stream carries
+ * newline-delimited JSON for presence and control.
  */
+import {
+  dispatchControl,
+  type RelayHandlers,
+  type RelayLink,
+} from "@/features/studio/engine/worker/relay-link";
 
-export interface RelayHandlers {
-  onControl(message: Record<string, unknown>): void;
-  onDatagram(data: Uint8Array, arrivalMs: number): void;
-  onClosed(code: number | null, reason: string): void;
-}
-
-export interface RelayTarget {
+interface QuicTarget {
   url: string;
-  /** Base64 SHA-256 of a self-signed relay certificate, or null for a CA-issued one. */
   certHash: string | null;
   ticket: string;
 }
@@ -36,7 +34,10 @@ function transportOptions(certHash: string | null): WebTransportOptions {
   return options;
 }
 
-export class RelaySession {
+const sleep = (ms: number) => new Promise<false>((resolve) => setTimeout(() => resolve(false), ms));
+
+export class QuicLink implements RelayLink {
+  readonly kind = "quic";
   private readonly encoder = new TextEncoder();
 
   private constructor(
@@ -49,26 +50,33 @@ export class RelaySession {
     return this.transport.datagrams.maxDatagramSize;
   }
 
-  static async open(target: RelayTarget, handlers: RelayHandlers): Promise<RelaySession> {
+  /** Rejects when the session is not ready within `timeoutMs`, so a fallback can be tried. */
+  static async open(target: QuicTarget, handlers: RelayHandlers, timeoutMs: number) {
     const url = `${target.url}/jam?ticket=${encodeURIComponent(target.ticket)}`;
     const transport = new WebTransport(url, transportOptions(target.certHash));
-    await transport.ready;
+    let adopted = false;
+    transport.closed
+      .then((info) => adopted && handlers.onClosed(info.closeCode ?? null, info.reason ?? ""))
+      .catch((error: unknown) => adopted && handlers.onClosed(null, String(error)));
+    const ready = await Promise.race([transport.ready.then(() => true), sleep(timeoutMs)]);
+    if (!ready) {
+      transport.close();
+      throw new Error("The relay did not answer over QUIC.");
+    }
+    adopted = true;
     transport.datagrams.outgoingMaxAge = OUTGOING_MAX_AGE_MS;
     transport.datagrams.incomingMaxAge = INCOMING_MAX_AGE_MS;
     const stream = await transport.createBidirectionalStream();
-    const session = new RelaySession(
+    const link = new QuicLink(
       transport,
       stream.writable.getWriter(),
       transport.datagrams.writable.getWriter(),
     );
     // The relay only sees a stream once data flows on it.
-    session.sendControl({ t: "hello" });
-    void session.readControl(stream.readable, handlers);
-    void session.readDatagrams(handlers);
-    transport.closed
-      .then((info) => handlers.onClosed(info.closeCode ?? null, info.reason ?? ""))
-      .catch((error: unknown) => handlers.onClosed(null, String(error)));
-    return session;
+    link.sendControl({ t: "hello" });
+    void link.readControl(stream.readable, handlers);
+    void link.readDatagrams(handlers);
+    return link;
   }
 
   private async readDatagrams(handlers: RelayHandlers): Promise<void> {
@@ -93,23 +101,13 @@ export class RelaySession {
         const { value, done } = await reader.read();
         if (done) return;
         pending += decoder.decode(value, { stream: true });
-        let end = pending.indexOf("\n");
-        while (end >= 0) {
-          this.dispatch(pending.slice(0, end), handlers);
-          pending = pending.slice(end + 1);
-          end = pending.indexOf("\n");
-        }
+        const end = pending.lastIndexOf("\n");
+        if (end < 0) continue;
+        dispatchControl(pending.slice(0, end), handlers);
+        pending = pending.slice(end + 1);
       }
     } catch {
       // The session closed; `transport.closed` reports why.
-    }
-  }
-
-  private dispatch(line: string, handlers: RelayHandlers): void {
-    try {
-      handlers.onControl(JSON.parse(line) as Record<string, unknown>);
-    } catch {
-      // A malformed line is ignored rather than allowed to end the session.
     }
   }
 

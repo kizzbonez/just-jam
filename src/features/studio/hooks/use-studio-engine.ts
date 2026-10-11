@@ -6,7 +6,7 @@ import type { AudioProfile } from "@/features/studio/audio-profile";
 import { collectDiagnostics } from "@/features/studio/engine/client/diagnostics";
 import { StudioEngine } from "@/features/studio/engine/client/engine";
 import type { RoomState } from "@/features/studio/engine/client/room-store";
-import { relayReachProblem } from "@/features/studio/relay-reach";
+import { planTransport } from "@/features/studio/transport-plan";
 
 export interface EngineHandle {
   engine: StudioEngine | null;
@@ -14,9 +14,8 @@ export interface EngineHandle {
   startError: string | null;
 }
 
-/** What the engine needs from the browser. Each is checked before starting. */
+/** What the engine needs from every browser, whichever way it reaches the relay. */
 const REQUIRED: [string, () => boolean][] = [
-  ["WebTransport", () => "WebTransport" in window],
   ["WebCodecs audio", () => "AudioEncoder" in window && "AudioDecoder" in window],
   ["AudioWorklet", () => "AudioWorkletNode" in window],
 ];
@@ -34,6 +33,23 @@ export function missingFeatures(): string[] {
   return REQUIRED.filter(([, present]) => !present()).map(([name]) => name);
 }
 
+/** Checks the browser and the route to the relay. Throws with a message for the player. */
+function preflight(ticket: RoomTicket): { direct: boolean } {
+  const missing = missingFeatures();
+  if (missing.length > 0) {
+    throw new Error(`This browser lacks ${missing.join(", ")}. Use a current Chrome or Edge.`);
+  }
+  const plan = planTransport({
+    relayUrl: ticket.relayUrl,
+    relayWsUrl: ticket.relayWsUrl,
+    pageHostname: window.location.hostname,
+    search: window.location.search,
+    hasWebTransport: "WebTransport" in window,
+  });
+  if (!plan.ok) throw new Error(plan.problem);
+  return plan;
+}
+
 /**
  * Starts an engine for the ticket and tears it down when the component goes
  * away, including when the route is hidden, so audio never outlives the room.
@@ -44,16 +60,11 @@ export function useStudioEngine(ticket: RoomTicket, profile: AudioProfile): Engi
   useEffect(() => {
     let cancelled = false;
     let engine: StudioEngine | null = null;
-    const missing = missingFeatures();
     const start = async () => {
-      if (missing.length > 0) {
-        throw new Error(`This browser lacks ${missing.join(", ")}. Use a current Chrome or Edge.`);
-      }
-      const unreachable = relayReachProblem(ticket.relayUrl, window.location.hostname);
-      if (unreachable) throw new Error(unreachable);
+      const { direct } = preflight(ticket);
       engine = await StudioEngine.create(profile);
       if (cancelled) return engine.dispose();
-      engine.connect(ticket);
+      engine.connect(ticket, direct);
       exposeDiagnostics(engine);
       setHandle({ engine, startError: null });
     };

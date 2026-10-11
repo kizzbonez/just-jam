@@ -20,6 +20,7 @@ export function collectDiagnostics(engine: StudioEngine) {
     closeReason: state.closeReason,
     selfSlot: state.selfSlot,
     maxDatagram: state.maxDatagram,
+    transport: state.transport,
     link: state.link,
     profile: state.profile,
     outputLatencyMs: engine.outputLatencyMs,

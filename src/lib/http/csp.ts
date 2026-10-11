@@ -6,7 +6,11 @@ import { env } from "@/lib/env";
  * serves prerendered shells, which rules out per-request nonces.
  */
 export function contentSecurityPolicy(): string {
-  const relay = new URL(env().RELAY_PUBLIC_URL).origin;
+  const { RELAY_PUBLIC_URL, RELAY_WS_URL } = env();
+  const relay = [RELAY_PUBLIC_URL, RELAY_WS_URL]
+    .filter((url) => url !== undefined)
+    .map((url) => new URL(url).origin)
+    .join(" ");
   const dev = process.env.NODE_ENV !== "production";
   return [
     "default-src 'self'",

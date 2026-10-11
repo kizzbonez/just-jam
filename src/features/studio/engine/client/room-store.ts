@@ -8,6 +8,7 @@ import type {
   PeerInfo,
   PeerStats,
   PublishedState,
+  TransportKind,
 } from "@/features/studio/engine/messages";
 
 export type RoomPhase = "connecting" | "live" | "closed";
@@ -45,6 +46,8 @@ export interface RoomState {
   link: LinkStats;
   profile: AudioProfile;
   maxDatagram: number;
+  /** Null until connected. */
+  transport: TransportKind | null;
   engineError: string | null;
 }
 
@@ -74,6 +77,7 @@ export class RoomStore {
       link: { rttMs: null, sentKbps: 0, sentPackets: 0 },
       profile,
       maxDatagram: 0,
+      transport: null,
       engineError: null,
     };
   }

@@ -15,7 +15,11 @@ import type {
 import { decodeAudio, TYPE_AUDIO } from "@/features/studio/engine/wire";
 import { Pinger } from "@/features/studio/engine/worker/pinger";
 import { Receiver } from "@/features/studio/engine/worker/receiver";
-import { RelaySession, type RelayTarget } from "@/features/studio/engine/worker/relay-session";
+import {
+  openRelay,
+  type RelayLink,
+  type RelayTarget,
+} from "@/features/studio/engine/worker/relay-link";
 import { Sender } from "@/features/studio/engine/worker/sender";
 
 const STATS_INTERVAL_MS = 250;
@@ -24,7 +28,7 @@ const PUBLISH_INTERVAL_MS = 2000;
 type Emit = (event: WorkerEvent) => void;
 
 export class RoomLink {
-  private session: RelaySession | null = null;
+  private session: RelayLink | null = null;
   private readonly sender: Sender;
   private readonly pinger = new Pinger();
   private readonly receivers = new Map<number, Receiver>();
@@ -50,7 +54,7 @@ export class RoomLink {
   }
 
   async connect(target: RelayTarget): Promise<void> {
-    this.session = await RelaySession.open(target, {
+    this.session = await openRelay(target, {
       onControl: (message) => this.onControl(message),
       onDatagram: (data, arrivalMs) => this.onDatagram(data, arrivalMs),
       onClosed: (code, reason) => this.onClosed(code, reason),
@@ -60,15 +64,25 @@ export class RoomLink {
     this.statsTimer = setInterval(() => this.reportStats(), STATS_INTERVAL_MS);
   }
 
+  /** The relay has seated us: tell the page, then announce our own state. */
+  private onWelcome(message: Record<string, unknown>): void {
+    const session = this.session;
+    if (!session) return;
+    this.emit({
+      t: "live",
+      slot: message.slot as number,
+      peers: message.peers as PeerInfo[],
+      maxDatagram: session.maxDatagramSize,
+      transport: session.kind,
+    });
+    this.publish();
+  }
+
   private onControl(message: Record<string, unknown>): void {
     switch (message.t) {
-      case "welcome": {
-        const maxDatagram = this.session?.maxDatagramSize ?? 0;
-        const peers = message.peers as PeerInfo[];
-        this.emit({ t: "live", slot: message.slot as number, peers, maxDatagram });
-        this.publish();
+      case "welcome":
+        this.onWelcome(message);
         break;
-      }
       case "peer-joined":
         this.emit({ t: "peer-joined", peer: message.peer as PeerInfo });
         break;

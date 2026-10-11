@@ -17,6 +17,11 @@ export interface ConsoleHeaderProps {
 
 const PHASE_TEXT = { connecting: "Connecting", live: "Live", closed: "Offline" } as const;
 
+const TRANSPORT_HINT = {
+  quic: "Direct to the relay over QUIC datagrams.",
+  websocket: "Through the WebSocket fallback, because the relay's UDP port is not reachable here.",
+} as const;
+
 function Stat({ label, value, unit }: { label: string; value: string; unit: string }) {
   return (
     <div className="flex items-baseline gap-2">
@@ -45,6 +50,16 @@ export function ConsoleHeader({ door, state, onLeave }: ConsoleHeaderProps) {
             {door.name}
           </span>
           {door.isHost && <Badge tone="steel">Host</Badge>}
+          {state.transport && (
+            <Badge
+              tone={state.transport === "quic" ? "wine" : "steel"}
+              className="cursor-help"
+            >
+              <span title={TRANSPORT_HINT[state.transport]}>
+                {state.transport === "quic" ? "QUIC" : "WebSocket"}
+              </span>
+            </Badge>
+          )}
         </h1>
         <span className="silk flex items-center gap-2" role="status">
           <Led on={state.phase === "live"} pulse={state.phase === "connecting"} />

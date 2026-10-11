@@ -15,6 +15,9 @@ import { TelemetryHistory } from "@/features/studio/engine/client/telemetry-hist
 import type { PeerInfo, WorkerCommand, WorkerEvent } from "@/features/studio/engine/messages";
 
 const ENGINE_PATH = "/engine";
+/** Changes with every engine build, so a cached copy from an older build is never reused. */
+const ENGINE_VERSION = process.env.NEXT_PUBLIC_ENGINE_VERSION ?? "dev";
+const engineUrl = (file: string) => `${ENGINE_PATH}/${file}?v=${ENGINE_VERSION}`;
 
 interface EngineParts {
   context: AudioContext;
@@ -42,18 +45,23 @@ export class StudioEngine {
     this.input = parts.input;
     this.store = new RoomStore(profile);
     worker.onmessage = (event: MessageEvent<WorkerEvent>) => this.onEvent(event.data);
-    worker.onerror = () => this.store.set({ engineError: "The audio engine stopped unexpectedly." });
+    // The worker script failed to load or crashed: the session cannot continue.
+    worker.onerror = () =>
+      this.store.set({
+        phase: "closed",
+        closeReason: "The audio engine could not start. Reload the page to try again.",
+      });
     this.applyFormat(profile);
   }
 
   static async create(profile: AudioProfile): Promise<StudioEngine> {
     const context = new AudioContext({ sampleRate: SAMPLE_RATE, latencyHint: 0 });
     await Promise.all([
-      context.audioWorklet.addModule(`${ENGINE_PATH}/capture.worklet.js`),
-      context.audioWorklet.addModule(`${ENGINE_PATH}/playback.worklet.js`),
+      context.audioWorklet.addModule(engineUrl("capture.worklet.js")),
+      context.audioWorklet.addModule(engineUrl("playback.worklet.js")),
     ]);
     await context.resume();
-    const worker = new Worker(`${ENGINE_PATH}/transport.worker.js`, { type: "module" });
+    const worker = new Worker(engineUrl("transport.worker.js"), { type: "module" });
     const capture = new MessageChannel();
     worker.postMessage({ t: "capture-port", port: capture.port2 } satisfies WorkerCommand, [
       capture.port2,
@@ -68,15 +76,27 @@ export class StudioEngine {
     this.worker.postMessage(command, transfer);
   }
 
-  connect(ticket: RoomTicket): void {
+  /** `direct` is false when the relay's QUIC address cannot work from this device. */
+  connect(ticket: RoomTicket, direct: boolean): void {
     this.command({ t: "profile", profile: this.store.getState().profile });
-    this.command({ t: "connect", url: ticket.relayUrl, certHash: ticket.certHash, ticket: ticket.ticket });
+    this.command({
+      t: "connect",
+      url: direct ? ticket.relayUrl : null,
+      certHash: ticket.certHash,
+      wsUrl: ticket.relayWsUrl,
+      ticket: ticket.ticket,
+    });
   }
 
   private onEvent(event: WorkerEvent): void {
     switch (event.t) {
       case "live":
-        this.store.set({ phase: "live", selfSlot: event.slot, maxDatagram: event.maxDatagram });
+        this.store.set({
+          phase: "live",
+          selfSlot: event.slot,
+          maxDatagram: event.maxDatagram,
+          transport: event.transport,
+        });
         event.peers.forEach((peer) => this.addPeer(peer));
         this.publishLocal();
         break;

@@ -19,6 +19,8 @@ export interface RoomTicket {
   relayUrl: string;
   /** Base64 SHA-256 to pin, or null when the relay has a CA-issued certificate. */
   certHash: string | null;
+  /** WebSocket fallback endpoint, or null when the studio has none. */
+  relayWsUrl: string | null;
   isHost: boolean;
 }
 
@@ -87,6 +89,7 @@ export async function issueTicket(
     ticket,
     relayUrl: env().RELAY_PUBLIC_URL,
     certHash: cert.pinned ? cert.hash : null,
+    relayWsUrl: env().RELAY_WS_URL?.replace(/\/$/, "") ?? null,
     isHost,
   };
 }

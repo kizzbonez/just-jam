@@ -11,6 +11,9 @@ import type {
   FrameMicros,
 } from "@/features/studio/audio-profile";
 
+/** How the session reaches the relay: direct QUIC datagrams, or the WebSocket fallback. */
+export type TransportKind = "quic" | "websocket";
+
 /** A participant as the relay announces them (relay/peer.go PeerInfo). */
 export interface PeerInfo {
   slot: number;
@@ -52,7 +55,7 @@ export interface LocalState {
 }
 
 export type WorkerCommand =
-  | { t: "connect"; url: string; certHash: string | null; ticket: string }
+  | { t: "connect"; url: string | null; certHash: string | null; wsUrl: string | null; ticket: string }
   | { t: "capture-port"; port: MessagePort }
   | { t: "peer-port"; slot: number; port: MessagePort }
   | { t: "profile"; profile: TransportProfile }
@@ -84,7 +87,7 @@ export interface PeerStats {
 }
 
 export type WorkerEvent =
-  | { t: "live"; slot: number; peers: PeerInfo[]; maxDatagram: number }
+  | { t: "live"; slot: number; peers: PeerInfo[]; maxDatagram: number; transport: TransportKind }
   | { t: "peer-joined"; peer: PeerInfo }
   | { t: "peer-left"; slot: number; reason: string }
   | { t: "peer-state"; slot: number; state: PublishedState }
