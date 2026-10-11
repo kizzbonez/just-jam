@@ -6,6 +6,15 @@ All notable changes to ToneLink QUIC are recorded here. The format follows
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-11
+
+### Changed
+
+- Before an input is armed, the interface rack now says what to do instead of
+  drawing a flat scope that looks like a dead signal, and the Mute and Monitor
+  switches are disabled until there is an input for them to act on.
+- Screenshots regenerated, so they show the route badge beside the room name.
+
 ## [1.1.0] - 2026-10-11
 
 A second way to reach the relay, for networks where UDP cannot get through,
@@ -197,7 +206,8 @@ system. No audio yet.
 - Lint-enforced size budgets: 200 lines per file, 40 lines per function
   (60 for components), complexity 10.
 
-[Unreleased]: https://github.com/kizzbonez/tonelink/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/kizzbonez/tonelink/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/kizzbonez/tonelink/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/kizzbonez/tonelink/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/kizzbonez/tonelink/compare/v0.4.0...v1.0.0
 [0.4.0]: https://github.com/kizzbonez/tonelink/compare/v0.3.0...v0.4.0
