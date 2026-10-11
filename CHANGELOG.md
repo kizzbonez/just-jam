@@ -6,6 +6,47 @@ All notable changes to ToneLink QUIC are recorded here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-11
+
+First complete release: the guide, a public home page, a security pass and
+everything needed to put the studio on a public hostname.
+
+### Added
+
+- In-app guide with seven illustrated pages: getting started, audio setup,
+  rooms, latency and buffering, account security, self-hosting and
+  troubleshooting.
+- Public home page at `/` explaining the idea, with a working model of a
+  channel in the hero. The studio itself stays behind sign-in.
+- `RELAY_BIND` setting for the relay's UDP port, and a "Playing with people
+  elsewhere" section in the guide and README. WebTransport is UDP, so an HTTP
+  tunnel can publish the web app but not the relay.
+- HSTS once `APP_URL` is https, and a `/.well-known/security.txt`.
+- `npm run shots`: regenerates every screenshot from a live stack with three
+  players, including the first-run wizard on a fresh install.
+- secsuite targets for the source tree, the running site and the built images.
+- The end-to-end test now also closes the room and checks everyone is told.
+
+### Changed
+
+- The repository is now `kizzbonez/tonelink`.
+- Anonymous requests for anything that is not a known page get a 404 instead
+  of a redirect to sign-in, so protected files and probes for paths such as
+  `/.env` reveal nothing. Dotfiles are never served.
+- The image optimizer route is behind sign-in. It could otherwise serve
+  protected files from `/public`.
+- The audio test asserts that the buffer follows its target rather than
+  staying under a fixed number of milliseconds.
+
+### Security
+
+- The runtime web image no longer contains npm, which removed eight high
+  severity findings in modules that never ran there.
+- Relay dependencies `golang.org/x/net`, `x/crypto` and `x/text` upgraded past
+  two high severity advisories.
+- `mysql2` and `deepmerge-ts`, pulled in by the Prisma CLI, are pinned to
+  patched versions. `npm audit --omit=dev` reports no vulnerabilities.
+
 ## [0.4.0] - 2026-10-11
 
 Telemetry and live control of transport and buffering.
@@ -120,8 +161,9 @@ system. No audio yet.
 - Lint-enforced size budgets: 200 lines per file, 40 lines per function
   (60 for components), complexity 10.
 
-[Unreleased]: https://github.com/kizzbonez/just-jam/compare/v0.4.0...HEAD
-[0.4.0]: https://github.com/kizzbonez/just-jam/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/kizzbonez/just-jam/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/kizzbonez/just-jam/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/kizzbonez/just-jam/releases/tag/v0.1.0
+[Unreleased]: https://github.com/kizzbonez/tonelink/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/kizzbonez/tonelink/compare/v0.4.0...v1.0.0
+[0.4.0]: https://github.com/kizzbonez/tonelink/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/kizzbonez/tonelink/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/kizzbonez/tonelink/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/kizzbonez/tonelink/releases/tag/v0.1.0
