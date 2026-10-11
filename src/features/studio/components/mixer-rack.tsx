@@ -1,10 +1,9 @@
 "use client";
 
-import { frameSamples } from "@/features/studio/audio-profile";
 import { ChannelStrip } from "@/features/studio/components/channel-strip";
+import { peerLatency } from "@/features/studio/components/peer-latency";
 import type { StudioEngine } from "@/features/studio/engine/client/engine";
-import type { PeerView, RoomState } from "@/features/studio/engine/client/room-store";
-import { estimateLatency } from "@/features/studio/latency";
+import type { RoomState } from "@/features/studio/engine/client/room-store";
 import { CopyField } from "@/ui/patterns/copy-field";
 import { RackUnit } from "@/ui/rack/rack-unit";
 
@@ -13,21 +12,6 @@ export interface MixerRackProps {
   state: RoomState;
   slug: string;
   isHost: boolean;
-}
-
-/** End-to-end estimate for one player, or null until both sides have reported. */
-export function peerLatencyMs(engine: StudioEngine, state: RoomState, peer: PeerView) {
-  if (!peer.state || !peer.stats?.playing) return null;
-  const frameMs = (frameSamples(peer.state.frameMicros) / 48_000) * 1000;
-  return estimateLatency({
-    senderInputMs: peer.state.inputLatencyMs,
-    frameMs,
-    codec: peer.state.codec,
-    senderRttMs: peer.state.rttMs,
-    receiverRttMs: state.link.rttMs ?? 0,
-    bufferMs: peer.stats.bufferMs,
-    outputMs: engine.outputLatencyMs,
-  }).totalMs;
 }
 
 /** The mix you hear: one strip per other player. Changes here affect only you. */
@@ -43,7 +27,6 @@ export function MixerRack({ engine, state, slug, isHost }: MixerRackProps) {
           {count === 1 ? "player" : "players"}
         </span>
       }
-      className="h-full"
     >
       {count === 0 ? (
         <div className="flex max-w-lg flex-col gap-3 py-2">
@@ -60,7 +43,7 @@ export function MixerRack({ engine, state, slug, isHost }: MixerRackProps) {
               key={peer.slot}
               engine={engine}
               peer={peer}
-              latencyMs={peerLatencyMs(engine, state, peer)}
+              latencyMs={peerLatency(engine, state, peer)?.totalMs ?? null}
               canKick={isHost}
             />
           ))}

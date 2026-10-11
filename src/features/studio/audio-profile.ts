@@ -66,6 +66,22 @@ export function fitsDatagram(profile: Pick<AudioProfile, "codec" | "frameMicros"
   return framePayloadBytes(profile) <= MAX_PAYLOAD_BYTES;
 }
 
+/**
+ * Returns the profile with the longest frame, no longer than the current one,
+ * that fits a datagram. Used when a codec or bitrate change would overflow.
+ */
+export function coerceProfile<T extends Pick<AudioProfile, "codec" | "frameMicros" | "bitrateKbps">>(
+  profile: T,
+): T {
+  if (fitsDatagram(profile)) return profile;
+  const frameMicros =
+    [...FRAME_MICROS]
+      .reverse()
+      .find((frame) => frame <= profile.frameMicros && fitsDatagram({ ...profile, frameMicros: frame })) ??
+    FRAME_MICROS[0];
+  return { ...profile, frameMicros };
+}
+
 /** Bits per second this profile sends, payload only. */
 export function wireBitrate(profile: Pick<AudioProfile, "codec" | "frameMicros" | "bitrateKbps">) {
   return (framePayloadBytes(profile) * 8 * 1_000_000) / profile.frameMicros;

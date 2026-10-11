@@ -1,16 +1,12 @@
 "use client";
 
-import { CHANNEL_LABELS, CHANNEL_MODES } from "@/features/studio/audio-profile";
-import type { ChannelModeValue } from "@/features/studio/audio-profile";
-import { DeviceSelect } from "@/features/studio/components/device-select";
 import { InputKeys, InputMeters } from "@/features/studio/components/input-keys";
+import { InterfaceFields } from "@/features/studio/components/interface-fields";
 import type { StudioEngine } from "@/features/studio/engine/client/engine";
 import type { InputView, RoomState } from "@/features/studio/engine/client/room-store";
 import { useDevices } from "@/features/studio/hooks/use-devices";
-import { Field } from "@/ui/primitives/field";
 import { Led } from "@/ui/primitives/led";
 import { Notice } from "@/ui/primitives/notice";
-import { Select } from "@/ui/primitives/select";
 import { RackUnit } from "@/ui/rack/rack-unit";
 
 export interface InputRackProps {
@@ -34,16 +30,15 @@ export function InputRack({ engine, state }: InputRackProps) {
     refresh();
   }
 
-  function pickDevice(id: string) {
-    const deviceId = id || null;
+  function pickInput(deviceId: string | null) {
     if (input.armed) void arm(deviceId);
     else engine.store.setInput({ deviceId });
   }
 
   return (
     <RackUnit
-      label="Input"
-      code="TL-IN"
+      label="Interface"
+      code="TL-IO"
       aside={
         <span className="silk flex items-center gap-2">
           <Led on={status.live} /> {status.text}
@@ -52,30 +47,14 @@ export function InputRack({ engine, state }: InputRackProps) {
     >
       <div className="flex flex-col gap-4">
         {input.error && <Notice tone="error">{input.error}</Notice>}
-        <DeviceSelect
-          id="input-device"
-          label="Audio interface"
-          devices={devices.inputs}
-          value={input.deviceId}
-          savedLabel={input.label}
-          hint={devices.labelled ? undefined : "Arm once to let the browser list your interfaces."}
-          onChange={pickDevice}
+        <InterfaceFields
+          devices={devices}
+          input={input}
+          profile={profile}
+          onInput={pickInput}
+          onOutput={(deviceId) => void engine.setOutputDevice(deviceId)}
+          onChannels={(channelMode) => engine.setProfile({ channelMode })}
         />
-        <Field label="Channels" htmlFor="channel-mode">
-          <Select
-            id="channel-mode"
-            value={profile.channelMode}
-            onChange={(event) =>
-              engine.setProfile({ channelMode: event.target.value as ChannelModeValue })
-            }
-          >
-            {CHANNEL_MODES.map((mode) => (
-              <option key={mode} value={mode}>
-                {CHANNEL_LABELS[mode]}
-              </option>
-            ))}
-          </Select>
-        </Field>
         <InputMeters engine={engine} armed={input.armed} />
         <InputKeys
           engine={engine}

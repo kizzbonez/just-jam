@@ -4,10 +4,13 @@ import { useRouter } from "next/navigation";
 import type { RoomTicket } from "@/features/rooms/server/issue-ticket";
 import type { RoomDoor } from "@/features/rooms/server/room-queries";
 import type { AudioProfile } from "@/features/studio/audio-profile";
+import { BufferRack } from "@/features/studio/components/buffer-rack";
 import { ClosedPanel } from "@/features/studio/components/closed-panel";
 import { ConsoleHeader } from "@/features/studio/components/console-header";
 import { InputRack } from "@/features/studio/components/input-rack";
 import { MixerRack } from "@/features/studio/components/mixer-rack";
+import { TelemetryRack } from "@/features/studio/components/telemetry-rack";
+import { TransportRack } from "@/features/studio/components/transport-rack";
 import { canRejoin } from "@/features/studio/engine/client/close-reasons";
 import type { StudioEngine } from "@/features/studio/engine/client/engine";
 import { useProfileSync } from "@/features/studio/hooks/use-profile-sync";
@@ -43,12 +46,15 @@ function LiveConsole({ engine, door, onRejoin }: LiveConsoleProps) {
     <div className="flex flex-col gap-5">
       <ConsoleHeader door={door} state={state} onLeave={() => router.push("/lobby")} />
       {state.engineError && <Notice tone="error">{state.engineError}</Notice>}
-      <div className="grid gap-5 lg:grid-cols-12">
-        <div className="lg:col-span-4">
+      <div className="grid items-start gap-5 lg:grid-cols-12">
+        <div className="flex flex-col gap-5 lg:col-span-4">
           <InputRack engine={engine} state={state} />
+          <TransportRack engine={engine} state={state} />
+          <BufferRack engine={engine} state={state} />
         </div>
-        <div className="lg:col-span-8">
+        <div className="flex flex-col gap-5 lg:col-span-8">
           <MixerRack engine={engine} state={state} slug={door.slug} isHost={door.isHost} />
+          <TelemetryRack engine={engine} state={state} />
         </div>
       </div>
     </div>
