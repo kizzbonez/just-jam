@@ -6,6 +6,40 @@ All notable changes to ToneLink QUIC are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-11
+
+Audio. Two players in a room now hear each other.
+
+### Added
+
+- Audio engine that bypasses WebRTC entirely. A capture AudioWorklet frames
+  the interface input, a transport worker encodes it with WebCodecs and sends
+  each frame as one WebTransport datagram, and a playback AudioWorklet per
+  remote player plays it through a purpose-built jitter buffer. The page's
+  main thread is never in the audio path.
+- Capture with every speech stage off (echo cancellation, noise suppression,
+  automatic gain), 48 kHz stereo, with channel routing: stereo, mono from
+  input 1, mono from input 2, or a mono sum.
+- Three codecs: Opus in low-delay mode at 96 to 510 kbps, and uncompressed
+  16-bit or 24-bit PCM. Frame sizes of 2.5, 5, 10 and 20 ms.
+- Jitter buffer with drift correction of at most half a percent, a crossfaded
+  skip when a network stall leaves too much queued, fade-out on underrun and
+  concealment of lost packets.
+- Adaptive buffer tuning that sizes each player's buffer from the measured
+  99th percentile packet lateness, plus a penalty that decays after dropouts.
+- Studio console: input rack with interface and channel selection, LED peak
+  meters, a waveform scope, mute and monitor switches; a mixer with one strip
+  per remote player carrying a level meter, volume fader, pan knob, local mute
+  and, for the host, a remove-from-room key.
+- `window.__tonelink.diagnostics()`, a read-only snapshot of a live session.
+- `npm run e2e`: two real browsers with fake audio interfaces join a room and
+  the test verifies pitch, channel, level, bitrate, loss and dropouts.
+
+### Changed
+
+- Registration, first-run setup and the change-password form ask for the new
+  password twice.
+
 ## [0.2.0] - 2026-10-11
 
 Rooms and the QUIC relay. Players can open a room, share its link and be
@@ -57,6 +91,7 @@ system. No audio yet.
 - Lint-enforced size budgets: 200 lines per file, 40 lines per function
   (60 for components), complexity 10.
 
-[Unreleased]: https://github.com/kizzbonez/just-jam/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/kizzbonez/just-jam/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/kizzbonez/just-jam/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kizzbonez/just-jam/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kizzbonez/just-jam/releases/tag/v0.1.0
