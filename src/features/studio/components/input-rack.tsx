@@ -1,5 +1,7 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
+import { FxFields } from "@/features/studio/components/fx-fields";
 import { InputKeys, InputMeters, MonitorNotice } from "@/features/studio/components/input-keys";
 import { InterfaceFields } from "@/features/studio/components/interface-fields";
 import type { StudioEngine } from "@/features/studio/engine/client/engine";
@@ -23,6 +25,8 @@ function statusOf(input: InputView): { live: boolean; text: string } {
 export function InputRack({ engine, state }: InputRackProps) {
   const { devices, refresh } = useDevices();
   const { input, profile } = state;
+  const { fx } = engine.local;
+  const effects = useSyncExternalStore(fx.subscribe, fx.get, fx.get);
   const status = statusOf(input);
 
   async function arm(deviceId: string | null) {
@@ -56,13 +60,14 @@ export function InputRack({ engine, state }: InputRackProps) {
           onChannels={(channelMode) => engine.setProfile({ channelMode })}
         />
         <InputMeters engine={engine} armed={input.armed} />
+        <FxFields settings={effects} onChange={(patch) => fx.set(patch)} />
         <InputKeys
           engine={engine}
           input={input}
           ready={state.phase === "live"}
           onArm={() => arm(input.deviceId)}
         />
-        <MonitorNotice engine={engine} input={input} />
+        <MonitorNotice engine={engine} input={input} wetOnly={effects.monitorWetOnly} />
       </div>
     </RackUnit>
   );

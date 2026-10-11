@@ -6,6 +6,18 @@ All notable changes to ToneLink QUIC are recorded here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0-beta.5] - 2026-10-11
+
+### Added
+
+- Reverb and echo on your own input, in the Interface rack. Reverb has a level
+  and three rooms; echo has a level, a time and a number of repeats. They are
+  applied before the audio is sent, so the whole room hears them, and they run
+  beside the untouched signal, so they add no latency. Settings are remembered
+  in the browser.
+- Monitor effects only: Monitor can play just the reverb and echo, for use
+  beside an audio interface's direct monitoring, which is instant but dry.
+
 ## [1.2.0-beta.4] - 2026-10-11
 
 ### Added
@@ -278,7 +290,8 @@ system. No audio yet.
 - Lint-enforced size budgets: 200 lines per file, 40 lines per function
   (60 for components), complexity 10.
 
-[Unreleased]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.4...HEAD
+[Unreleased]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.5...HEAD
+[1.2.0-beta.5]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.4...v1.2.0-beta.5
 [1.2.0-beta.4]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.3...v1.2.0-beta.4
 [1.2.0-beta.3]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.2...v1.2.0-beta.3
 [1.2.0-beta.2]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.1...v1.2.0-beta.2

@@ -102,6 +102,37 @@ function Monitoring() {
   );
 }
 
+const EFFECTS: ReactNode[] = [
+  <>
+    <Strong>Reverb</Strong> has a level and a room: Room, Hall or Cathedral, from a short tail to
+    a long one.
+  </>,
+  <>
+    <Strong>Echo</Strong> has a level, the time between repeats and how many repeats there are.
+  </>,
+  "Both start at zero, which switches them off. Your settings are remembered in this browser.",
+];
+
+function Effects() {
+  return (
+    <Section id="effects" n="05" title="Reverb and echo">
+      <P>
+        The effects in the Interface rack are added to your input before it is sent, so the whole
+        room hears them. They run beside the untouched signal, so they add nothing to your latency.
+      </P>
+      <List items={EFFECTS} />
+      <P>
+        Your interface&apos;s direct monitoring plays your input before it reaches the computer,
+        so it cannot include these effects. To hear both, leave direct monitoring on, switch{" "}
+        <Strong>Monitor</Strong> on and choose <Strong>Monitor effects only</Strong>. You then hear
+        yourself dry and at once through the interface, and only the reverb and echo from the
+        browser. They arrive a few tens of milliseconds late, which the ear takes as part of the
+        effect.
+      </P>
+    </Section>
+  );
+}
+
 function Level() {
   return (
     <Section id="level" n="04" title="Setting your level">
@@ -136,6 +167,7 @@ export function AudioSetup() {
       <Routing />
       <Monitoring />
       <Level />
+      <Effects />
     </>
   );
 }

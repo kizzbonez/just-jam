@@ -24,7 +24,8 @@ export function collectDiagnostics(engine: StudioEngine) {
     link: state.link,
     profile: state.profile,
     outputLatencyMs: engine.outputLatencyMs,
-    input: { ...state.input, ...measure(engine.inputTap) },
+    input: { ...state.input, ...measure(engine.local.tap) },
+    fx: engine.local.fx.get(),
     peers: state.peers.map((peer) => ({
       slot: peer.slot,
       name: peer.name,

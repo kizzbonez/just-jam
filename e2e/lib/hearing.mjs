@@ -72,7 +72,9 @@ export function checkPeer(label, peer, { tones, kbps: expectedKbps }) {
     `${round(stats.receivedKbps, 0)} kbps, want about ${expectedKbps}`,
   );
   const held = `${round(stats.bufferMs)} ms held, target ${round(stats.targetMs)} ms`;
-  check(`${label}: buffer follows its target`, Math.abs(stats.bufferMs - stats.targetMs) < 15, held);
+  // A raised target is reached at 2 ms a second, so allow for the climb on a busy machine.
+  const slack = Math.max(15, stats.targetMs * 0.4);
+  check(`${label}: buffer follows its target`, Math.abs(stats.bufferMs - stats.targetMs) < slack, held);
   check(`${label}: target stays modest`, stats.targetMs < 80, held);
 }
 

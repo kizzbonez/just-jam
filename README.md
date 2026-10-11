@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 1.2.0-beta.4" src="https://img.shields.io/badge/version-1.2.0--beta.4-dc2626?style=flat-square">
+  <img alt="Version 1.2.0-beta.5" src="https://img.shields.io/badge/version-1.2.0--beta.5-dc2626?style=flat-square">
   <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-09090b?style=flat-square&logo=nextdotjs">
   <img alt="Go relay" src="https://img.shields.io/badge/relay-Go%20%2B%20quic--go-09090b?style=flat-square&logo=go">
   <img alt="Docker Compose" src="https://img.shields.io/badge/runs%20in-Docker%20Compose-09090b?style=flat-square&logo=docker">

@@ -47,6 +47,39 @@ try {
   checkHearing("host hears guest (Opus 256k)", heardByHost, { tones: TONES.guest, kbps: 256 });
   checkHearing("guest hears host (Opus 256k)", heardByGuest, { tones: TONES.host, kbps: 256 });
 
+  // Reverb and echo on the host's input reach the guest, and switch off again.
+  const dryLevel = heardByGuest.peers[0].peaks[0];
+  const setEffects = async (key) => {
+    for (const name of ["Reverb level", "Echo level"]) {
+      await host.page.getByLabel(name).focus();
+      await host.page.keyboard.press(key);
+    }
+  };
+  await setEffects("End");
+  await host.page.waitForTimeout(3000);
+  const wetHost = await diagnostics(host.page);
+  const wetGuest = (await diagnostics(guest.page)).peers[0];
+  check("effects: both are on at full level", wetHost.fx.reverb === 1 && wetHost.fx.echo === 1);
+  check(
+    "effects: the guest still hears the right pitch",
+    near(wetGuest.toneHz[0], TONES.host.leftHz) && near(wetGuest.toneHz[1], TONES.host.rightHz),
+    wetGuest.toneHz.map((hz) => round(hz, 0)).join(" / "),
+  );
+  check(
+    "effects: they change what the guest hears",
+    Math.abs(wetGuest.peaks[0] - dryLevel) > 0.01,
+    `level ${round(dryLevel, 3)} dry, ${round(wetGuest.peaks[0], 3)} with effects`,
+  );
+  check("effects: no dropouts", wetGuest.stats.underruns <= 1, `${wetGuest.stats.underruns} underruns`);
+  await setEffects("Home");
+  await host.page.waitForTimeout(5000);
+  const dryAgain = (await diagnostics(guest.page)).peers[0];
+  check(
+    "effects: off again, the level is back",
+    Math.abs(dryAgain.peaks[0] - dryLevel) < 0.02,
+    `level ${round(dryAgain.peaks[0], 3)}, was ${round(dryLevel, 3)}`,
+  );
+
   // Change transport while playing: uncompressed 16-bit PCM, 5 ms frames.
   for (const player of [host, guest]) {
     await player.page.selectOption("#live-codec", "PCM16");

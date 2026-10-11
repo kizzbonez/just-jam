@@ -149,9 +149,9 @@ export class StudioEngine {
     this.store.removePeer(slot);
   }
 
-  /** Measuring point on the raw interface input. */
-  get inputTap(): SignalTap {
-    return this.input.tap;
+  /** The local input's measuring point and its effects. */
+  get local(): Pick<LocalInput, "tap" | "fx"> {
+    return this.input;
   }
 
   /** Measuring point after a player's fader and pan. */

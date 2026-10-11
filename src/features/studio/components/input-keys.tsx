@@ -15,7 +15,7 @@ import { WaveScope } from "@/ui/rack/wave-scope";
  * of drawing a flat line that looks like a dead signal.
  */
 export function InputMeters({ engine, armed }: { engine: StudioEngine; armed: boolean }) {
-  const tap = engine.inputTap;
+  const tap = engine.local.tap;
   if (!armed) {
     return (
       <div className="well flex h-24 flex-col items-center justify-center gap-1 border border-dashed border-etch-hi px-4 text-center">
@@ -36,18 +36,37 @@ export function InputMeters({ engine, armed }: { engine: StudioEngine; armed: bo
   );
 }
 
+export interface MonitorNoticeProps {
+  engine: StudioEngine;
+  input: InputView;
+  /** Monitor is set to play the effects alone. */
+  wetOnly: boolean;
+}
+
 /**
  * Monitoring through the browser goes in and out of the sound card, so it is
  * never instant. Says how late it is, and what to use instead.
  */
-export function MonitorNotice({ engine, input }: { engine: StudioEngine; input: InputView }) {
+export function MonitorNotice({ engine, input, wetOnly }: MonitorNoticeProps) {
   if (!input.armed || !input.monitor) return null;
-  const delayMs = Math.round(input.latencyMs + engine.outputLatencyMs);
+  const delay = (
+    <span className="readout text-ink">
+      {Math.round(input.latencyMs + engine.outputLatencyMs)} ms
+    </span>
+  );
+  if (wetOnly) {
+    return (
+      <Notice>
+        Monitor is playing only your reverb and echo, at least {delay} late, which those effects
+        hide well. Hear yourself dry through the direct monitoring on your audio interface.
+      </Notice>
+    );
+  }
   return (
     <Notice>
-      You hear yourself at least <span className="readout text-ink">{delayMs} ms</span> late. That
-      is this computer recording and playing back, not the network. To hear yourself with no
-      delay, turn Monitor off and use the direct monitoring on your audio interface.
+      You hear yourself at least {delay} late. That is this computer recording and playing back,
+      not the network. To hear yourself with no delay, use the direct monitoring on your audio
+      interface, and either turn Monitor off or set it to effects only.
     </Notice>
   );
 }
