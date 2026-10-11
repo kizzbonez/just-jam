@@ -1,0 +1,82 @@
+{
+  "admin": {
+    "width": 1440,
+    "height": 900
+  },
+  "console": {
+    "width": 1440,
+    "height": 1290
+  },
+  "create-room": {
+    "width": 1440,
+    "height": 900
+  },
+  "guide": {
+    "width": 1440,
+    "height": 900
+  },
+  "history": {
+    "width": 1440,
+    "height": 900
+  },
+  "interface": {
+    "width": 421,
+    "height": 509
+  },
+  "landing-full": {
+    "width": 1440,
+    "height": 6165
+  },
+  "landing": {
+    "width": 1440,
+    "height": 900
+  },
+  "lobby": {
+    "width": 1440,
+    "height": 900
+  },
+  "login": {
+    "width": 1440,
+    "height": 900
+  },
+  "mixer": {
+    "width": 839,
+    "height": 558
+  },
+  "profile": {
+    "width": 1440,
+    "height": 900
+  },
+  "register": {
+    "width": 1440,
+    "height": 900
+  },
+  "room-gate": {
+    "width": 1440,
+    "height": 900
+  },
+  "security": {
+    "width": 1440,
+    "height": 900
+  },
+  "setup-owner": {
+    "width": 1440,
+    "height": 900
+  },
+  "setup-policy": {
+    "width": 1440,
+    "height": 900
+  },
+  "setup": {
+    "width": 1440,
+    "height": 900
+  },
+  "telemetry": {
+    "width": 839,
+    "height": 476
+  },
+  "transport": {
+    "width": 421,
+    "height": 601
+  }
+}
