@@ -17,6 +17,8 @@ export class PeerAudio {
   private readonly gate = new RouteGate();
   private readonly links: PeerLinks;
   private buffer: BufferSetting = { mode: "AUTO", ms: 20 };
+  /** Block size of this machine's output device, in ms. Unknown until the page reports it. */
+  private blockMs: number | undefined;
   /** True while at least one player can only be reached through the relay. */
   private relayNeeded = false;
 
@@ -30,7 +32,9 @@ export class PeerAudio {
 
   addPeer(slot: number, port: MessagePort): void {
     this.dropReceiver(slot);
-    this.receivers.set(slot, new Receiver(slot, port, this.buffer));
+    const receiver = new Receiver(slot, port, this.buffer);
+    receiver.setOutputBlock(this.blockMs);
+    this.receivers.set(slot, receiver);
     this.planRoutes();
   }
 
@@ -53,6 +57,11 @@ export class PeerAudio {
 
   removeLink(slot: number): void {
     this.links.remove(slot);
+  }
+
+  setOutputBlock(blockMs: number): void {
+    this.blockMs = blockMs;
+    for (const receiver of this.receivers.values()) receiver.setOutputBlock(blockMs);
   }
 
   setBuffer(buffer: BufferSetting): void {

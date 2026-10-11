@@ -51,6 +51,8 @@ export class Receiver {
   private readonly decoder: Decoder;
   private expected: number | null = null;
   private frameMs = 5;
+  /** How much audio the output device takes at a time, when the page has reported it. */
+  private blockMs: number | undefined;
   private tuner: TunerState = initialTuner(5);
   private sentTargetMs = -1;
   private playout: PlayoutStats = IDLE_PLAYOUT;
@@ -75,6 +77,10 @@ export class Receiver {
 
   setBuffer(buffer: BufferSetting): void {
     this.buffer = buffer;
+  }
+
+  setOutputBlock(blockMs: number | undefined): void {
+    this.blockMs = blockMs;
   }
 
   push(packet: AudioPacket, arrivalMs: number): void {
@@ -113,7 +119,7 @@ export class Receiver {
     this.frameMs = frameMs;
     // Arrival timing is unknown again, so fall back to the generous starting
     // buffer and tell the worklet now, not at the next stats tick.
-    const fresh = initialTuner(frameMs);
+    const fresh = initialTuner(frameMs, this.blockMs);
     const targetMs = Math.max(this.tuner.targetMs, fresh.targetMs);
     this.tuner = { ...this.tuner, targetMs, settleS: fresh.settleS };
     this.sendTarget(this.currentTarget());
@@ -167,7 +173,8 @@ export class Receiver {
 
   private nextTarget(latenessMs: number, underruns: number, elapsedSeconds: number): number {
     if (this.buffer.mode === "AUTO") {
-      const input = { frameMs: this.frameMs, latenessMs, underruns, elapsedSeconds };
+      const { frameMs, blockMs } = this;
+      const input = { frameMs, blockMs, latenessMs, underruns, elapsedSeconds };
       this.tuner = stepTuner(this.tuner, input);
     }
     return this.currentTarget();

@@ -8,6 +8,7 @@ import { SAMPLE_RATE, type AudioProfile } from "@/features/studio/audio-profile"
 import { describeInputError } from "@/features/studio/engine/client/capture";
 import { describeClose } from "@/features/studio/engine/client/close-reasons";
 import { LocalInput } from "@/features/studio/engine/client/local-input";
+import { OutputDevice } from "@/features/studio/engine/client/output-device";
 import { PeerRack } from "@/features/studio/engine/client/peer-rack";
 import { RoomStore, type PeerMix } from "@/features/studio/engine/client/room-store";
 import type { SignalTap } from "@/features/studio/engine/client/signal-tap";
@@ -30,6 +31,7 @@ export class StudioEngine {
   /** A minute of buffer telemetry per player, for the trace scope. */
   readonly history = new TelemetryHistory();
   private readonly rack: PeerRack;
+  private readonly output: OutputDevice;
   /** For linking to the other players' browsers. Null keeps audio on the relay. */
   private iceServers: RTCIceServer[] | null = null;
   private disposed = false;
@@ -41,12 +43,12 @@ export class StudioEngine {
   private readonly input: LocalInput;
 
   private constructor(parts: EngineParts, profile: AudioProfile) {
-    const { worker } = parts;
+    const worker = (this.worker = parts.worker);
     this.context = parts.context;
-    this.worker = worker;
     this.input = parts.input;
     this.store = new RoomStore(profile);
     this.rack = new PeerRack(parts.context, (item, transfer) => this.command(item, transfer));
+    this.output = new OutputDevice(parts.context, (blockMs) => this.command({ t: "output", blockMs }));
     worker.onmessage = (event: MessageEvent<WorkerEvent>) => this.onEvent(event.data);
     // The worker script failed to load or crashed: the session cannot continue.
     worker.onerror = () =>
@@ -71,6 +73,7 @@ export class StudioEngine {
     ]);
     const input = new LocalInput(context, capture.port1);
     const engine = new StudioEngine({ context, worker, input }, profile);
+    engine.output.report();
     if (profile.outputDeviceId) void engine.setOutputDevice(profile.outputDeviceId);
     return engine;
   }
@@ -158,7 +161,7 @@ export class StudioEngine {
 
   /** Output delay the browser reports for this device, in ms. */
   get outputLatencyMs(): number {
-    return (this.context.baseLatency + (this.context.outputLatency || 0)) * 1000;
+    return this.output.latencyMs;
   }
 
   private publishLocal(): void {
@@ -222,9 +225,8 @@ export class StudioEngine {
 
   /** Routes playback to a device, or back to the system default with null. */
   async setOutputDevice(deviceId: string | null): Promise<void> {
-    const context = this.context as AudioContext & { setSinkId?: (id: string) => Promise<void> };
     try {
-      await context.setSinkId?.(deviceId ?? "");
+      await this.output.use(deviceId);
       this.store.set({ profile: { ...this.store.getState().profile, outputDeviceId: deviceId } });
     } catch {
       this.store.set({ engineError: "That playback device could not be used." });

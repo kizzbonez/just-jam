@@ -139,7 +139,8 @@ function Buffer() {
       </P>
       <P>
         With <Strong>Adaptive tuning</Strong> on, each player&apos;s buffer is sized from how late
-        their packets really are: a structural minimum for the frame size, plus the lateness that
+        their packets really are: a structural minimum for the frame size and for the size of the
+        blocks your own sound card takes audio in, plus the lateness that
         99 in 100 recent packets stayed under, plus a margin. After a dropout it grows by a few
         milliseconds and then eases back over the following seconds. It rises at once and falls
         slowly, because a buffer that is briefly too large costs milliseconds and one that is too

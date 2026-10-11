@@ -82,6 +82,22 @@ describe("stepTuner", () => {
     expect(state.targetMs).toBeGreaterThan(structuralFloorMs(FRAME_MS) + 12);
   });
 
+  it("needs a whole output block in hand, whatever size the sound card takes", () => {
+    // One render quantum at a time: the floor is unchanged from a plain worklet.
+    expect(structuralFloorMs(FRAME_MS, 128 / 48)).toBeCloseTo(structuralFloorMs(FRAME_MS), 6);
+    // 10 ms at a time, as Chrome plays on Windows: 2.5 ms frames still need 12.85 ms.
+    expect(structuralFloorMs(2.5, 10)).toBeCloseTo(1.25 + 10 + 1.6, 6);
+    expect(structuralFloorMs(2.5, 0)).toBeCloseTo(structuralFloorMs(2.5), 6);
+  });
+
+  it("starts above the larger floor instead of finding it through dropouts", () => {
+    const step = { frameMs: 2.5, blockMs: 10, latenessMs: 6, underruns: 0, elapsedSeconds: 0.25 };
+    let state = initialTuner(2.5, 10);
+    for (let i = 0; i < 40; i++) state = stepTuner(state, step);
+    expect(state.penaltyMs).toBe(0);
+    expect(state.targetMs).toBeCloseTo(12.85 + 6 * 1.15 + 1, 2);
+  });
+
   it("keeps a new stream's starting headroom while it is being measured", () => {
     const start = initialTuner(FRAME_MS);
     const early = settle(start, 2, 1.75);

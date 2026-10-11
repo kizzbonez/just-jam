@@ -68,6 +68,7 @@ export type WorkerCommand =
   | { t: "peer-port"; slot: number; port: MessagePort }
   | { t: "profile"; profile: TransportProfile }
   | { t: "local"; state: LocalState }
+  | { t: "output"; blockMs: number }
   | { t: "kick"; slot: number }
   | { t: "p2p-channel"; slot: number; channel: RTCDataChannel }
   | { t: "p2p-close"; slot: number }

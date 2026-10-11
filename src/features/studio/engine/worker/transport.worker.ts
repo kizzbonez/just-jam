@@ -35,6 +35,7 @@ const handlers: Handlers = {
     link.setProfile(command.profile).catch(fail);
   },
   local: (command) => link.setLocal(command.state),
+  output: (command) => link.setOutputBlock(command.blockMs),
   kick: (command) => link.kick(command.slot),
   "p2p-channel": (command) => link.addLink(command.slot, command.channel),
   "p2p-close": (command) => link.removeLink(command.slot),

@@ -182,6 +182,11 @@ export class RoomLink {
     this.publish();
   }
 
+  /** How much audio this machine's output device takes at a time. */
+  setOutputBlock(blockMs: number): void {
+    this.audio.setOutputBlock(blockMs);
+  }
+
   setLocal(state: LocalState): void {
     this.local = state;
     this.publish();

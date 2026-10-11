@@ -6,6 +6,17 @@ All notable changes to ToneLink QUIC are recorded here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0-beta.3] - 2026-10-11
+
+### Fixed
+
+- Recurring dropouts on machines whose sound card takes audio in large blocks,
+  which is how Chrome plays on Windows (10 ms at a time). The adaptive buffer
+  assumed one 2.7 ms render quantum, set its floor too low, and only reached a
+  workable size by dropping out and adding a penalty, again and again as the
+  penalty wore off. The page now reports the output block size and the floor
+  includes it, so the buffer starts where it needs to be.
+
 ## [1.2.0-beta.2] - 2026-10-11
 
 ### Changed
@@ -259,7 +270,8 @@ system. No audio yet.
 - Lint-enforced size budgets: 200 lines per file, 40 lines per function
   (60 for components), complexity 10.
 
-[Unreleased]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.2...HEAD
+[Unreleased]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.3...HEAD
+[1.2.0-beta.3]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.2...v1.2.0-beta.3
 [1.2.0-beta.2]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.1...v1.2.0-beta.2
 [1.2.0-beta.1]: https://github.com/kizzbonez/tonelink/compare/v1.1.1...v1.2.0-beta.1
 [1.1.1]: https://github.com/kizzbonez/tonelink/compare/v1.1.0...v1.1.1
