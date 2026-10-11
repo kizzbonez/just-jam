@@ -6,6 +6,7 @@ import type { AudioProfile } from "@/features/studio/audio-profile";
 import { collectDiagnostics } from "@/features/studio/engine/client/diagnostics";
 import { StudioEngine } from "@/features/studio/engine/client/engine";
 import type { RoomState } from "@/features/studio/engine/client/room-store";
+import { relayReachProblem } from "@/features/studio/relay-reach";
 
 export interface EngineHandle {
   engine: StudioEngine | null;
@@ -48,6 +49,8 @@ export function useStudioEngine(ticket: RoomTicket, profile: AudioProfile): Engi
       if (missing.length > 0) {
         throw new Error(`This browser lacks ${missing.join(", ")}. Use a current Chrome or Edge.`);
       }
+      const unreachable = relayReachProblem(ticket.relayUrl, window.location.hostname);
+      if (unreachable) throw new Error(unreachable);
       engine = await StudioEngine.create(profile);
       if (cancelled) return engine.dispose();
       engine.connect(ticket);

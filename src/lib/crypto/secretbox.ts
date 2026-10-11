@@ -12,7 +12,9 @@ function keyFor(purpose: string): Buffer {
 /** AES-256-GCM. Output is `iv | tag | ciphertext`, base64url encoded. */
 export function seal(plain: string, purpose: string): string {
   const iv = randomBytes(IV_BYTES);
-  const cipher = createCipheriv("aes-256-gcm", keyFor(purpose), iv);
+  const cipher = createCipheriv("aes-256-gcm", keyFor(purpose), iv, {
+    authTagLength: TAG_BYTES,
+  });
   const body = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
   return Buffer.concat([iv, cipher.getAuthTag(), body]).toString("base64url");
 }
@@ -20,7 +22,9 @@ export function seal(plain: string, purpose: string): string {
 export function open(sealed: string, purpose: string): string | null {
   const raw = Buffer.from(sealed, "base64url");
   if (raw.length <= IV_BYTES + TAG_BYTES) return null;
-  const decipher = createDecipheriv("aes-256-gcm", keyFor(purpose), raw.subarray(0, IV_BYTES));
+  const decipher = createDecipheriv("aes-256-gcm", keyFor(purpose), raw.subarray(0, IV_BYTES), {
+    authTagLength: TAG_BYTES,
+  });
   decipher.setAuthTag(raw.subarray(IV_BYTES, IV_BYTES + TAG_BYTES));
   try {
     const body = raw.subarray(IV_BYTES + TAG_BYTES);

@@ -15,6 +15,11 @@ const ENTERING: SpecRow[] = [
     note: "Check that the relay container is running. The lobby hides player counts and rooms cannot be entered until it is back.",
   },
   {
+    name: "Relay is set up for local use only",
+    value: "The relay address is 127.0.0.1",
+    note: "The web app was published but the relay was not. Publish the relay's UDP port and set RELAY_PUBLIC_URL to an address other devices can reach. See Self-hosting.",
+  },
+  {
     name: "Could not reach the audio relay",
     value: "Your browser cannot reach the relay",
     note: "UDP to the relay port is blocked or the address is wrong. Many office and hotel networks block UDP. Try another network.",

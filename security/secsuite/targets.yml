@@ -17,6 +17,18 @@ targets:
     source_path: /repos/just-jam
     semgrep_config: auto
 
+  # Just the code that is written here, for static analysis. Scanning the whole
+  # checkout also walks node_modules, which takes many minutes over a bind mount.
+  tonelink-app-code:
+    kind: repo
+    source_path: /repos/just-jam/src
+    semgrep_config: auto
+
+  tonelink-relay-code:
+    kind: repo
+    source_path: /repos/just-jam/relay
+    semgrep_config: auto
+
   # The running studio as an anonymous visitor sees it. Only the sign-in
   # screens may answer; everything under sensitive_paths must be refused.
   tonelink-web:
