@@ -3,6 +3,7 @@
 import { UserPlus } from "lucide-react";
 import Link from "next/link";
 import type { FormEvent } from "react";
+import { PasswordPair } from "@/features/auth/components/password-pair";
 import { enterStudio } from "@/features/auth/navigation";
 import { api } from "@/lib/api-client";
 import { readForm } from "@/lib/read-form";
@@ -36,14 +37,7 @@ export function RegisterForm({ inviteOnly }: { inviteOnly: boolean }) {
       >
         <Input id="displayName" name="displayName" autoComplete="nickname" required />
       </Field>
-      <Field
-        label="Password"
-        htmlFor="password"
-        hint="At least 10 characters."
-        error={fields.password}
-      >
-        <Input id="password" name="password" type="password" autoComplete="new-password" required />
-      </Field>
+      <PasswordPair errors={fields} />
       {inviteOnly && (
         <Field
           label="Invite code"

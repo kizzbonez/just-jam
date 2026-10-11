@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { PasswordPair } from "@/features/auth/components/password-pair";
 import { api } from "@/lib/api-client";
 import { readForm } from "@/lib/read-form";
 import { useApiAction } from "@/lib/use-api-action";
@@ -44,20 +45,7 @@ export function PasswordPanel() {
           required
         />
       </Field>
-      <Field
-        label="New password"
-        htmlFor="newPassword"
-        hint="At least 10 characters."
-        error={action.fields.newPassword}
-      >
-        <Input
-          id="newPassword"
-          name="newPassword"
-          type="password"
-          autoComplete="new-password"
-          required
-        />
-      </Field>
+      <PasswordPair name="newPassword" label="New password" errors={action.fields} />
       <Button type="submit" loading={action.pending} className="self-start">
         Change password
       </Button>

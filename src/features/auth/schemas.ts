@@ -28,6 +28,10 @@ export const TotpCodeSchema = z
   .trim()
   .regex(/^\d{6}$/, "Enter the 6-digit code.");
 
+/** Typed twice so a slip of the finger cannot lock someone out of a new account. */
+const ConfirmSchema = z.string().max(200);
+const MISMATCH = { message: "Passwords do not match.", path: ["confirmPassword"] };
+
 export const LoginSchema = z.object({
   email: EmailSchema,
   password: z.string().min(1, "Enter your password.").max(200),
@@ -38,12 +42,25 @@ export const MfaSchema = z.object({
   code: z.string().trim().min(6, "Enter a code.").max(24),
 });
 
-export const RegisterSchema = z.object({
-  email: EmailSchema,
-  displayName: DisplayNameSchema,
-  password: PasswordSchema,
-  inviteCode: z.string().trim().max(64).optional(),
-});
+export const RegisterSchema = z
+  .object({
+    email: EmailSchema,
+    displayName: DisplayNameSchema,
+    password: PasswordSchema,
+    confirmPassword: ConfirmSchema,
+    inviteCode: z.string().trim().max(64).optional(),
+  })
+  .refine((value) => value.password === value.confirmPassword, MISMATCH);
+
+/** The owner account as entered in the setup wizard. */
+export const OwnerAccountSchema = z
+  .object({
+    email: EmailSchema,
+    displayName: DisplayNameSchema,
+    password: PasswordSchema,
+    confirmPassword: ConfirmSchema,
+  })
+  .refine((value) => value.password === value.confirmPassword, MISMATCH);
 
 export const SetupBeginSchema = z.object({
   token: z.string().trim().min(8, "Paste the setup token.").max(128),
@@ -62,10 +79,13 @@ export const SetupTokenSchema = z.object({
   token: z.string().trim().min(8, "Paste the setup token.").max(128),
 });
 
-export const PasswordChangeSchema = z.object({
-  currentPassword: z.string().min(1, "Enter your current password.").max(200),
-  newPassword: PasswordSchema,
-});
+export const PasswordChangeSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Enter your current password.").max(200),
+    newPassword: PasswordSchema,
+    confirmPassword: ConfirmSchema,
+  })
+  .refine((value) => value.newPassword === value.confirmPassword, MISMATCH);
 
 export const TotpConfirmSchema = z.object({
   enrollment: z.string().min(16).max(2000),

@@ -2,14 +2,13 @@
 
 import { ArrowRight } from "lucide-react";
 import { useState, type FormEvent } from "react";
+import { PasswordPair } from "@/features/auth/components/password-pair";
 import type { SetupDraft } from "@/features/auth/components/setup/setup-wizard";
-import { SetupBeginSchema } from "@/features/auth/schemas";
+import { OwnerAccountSchema } from "@/features/auth/schemas";
 import { readForm } from "@/lib/read-form";
 import { Button } from "@/ui/primitives/button";
 import { Field } from "@/ui/primitives/field";
 import { Input } from "@/ui/primitives/input";
-
-const OwnerSchema = SetupBeginSchema.pick({ email: true, displayName: true, password: true });
 
 type Owner = Pick<SetupDraft, "email" | "displayName" | "password">;
 
@@ -23,8 +22,11 @@ export function OwnerStep({ draft, onDone }: OwnerStepProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   function submit(event: FormEvent<HTMLFormElement>) {
-    const parsed = OwnerSchema.safeParse(readForm(event));
-    if (parsed.success) return onDone(parsed.data);
+    const parsed = OwnerAccountSchema.safeParse(readForm(event));
+    if (parsed.success) {
+      const { email, displayName, password } = parsed.data;
+      return onDone({ email, displayName, password });
+    }
     const next: Record<string, string> = {};
     for (const issue of parsed.error.issues) next[String(issue.path[0])] ??= issue.message;
     setErrors(next);
@@ -50,14 +52,7 @@ export function OwnerStep({ draft, onDone }: OwnerStepProps) {
       <Field label="Display name" htmlFor="displayName" error={errors.displayName}>
         <Input id="displayName" name="displayName" defaultValue={draft.displayName} required />
       </Field>
-      <Field
-        label="Password"
-        htmlFor="password"
-        hint="At least 10 characters."
-        error={errors.password}
-      >
-        <Input id="password" name="password" type="password" autoComplete="new-password" required />
-      </Field>
+      <PasswordPair errors={errors} />
       <Button type="submit" variant="fire" icon={<ArrowRight aria-hidden className="size-4" />}>
         Continue
       </Button>
