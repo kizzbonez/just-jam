@@ -6,6 +6,35 @@ All notable changes to ToneLink QUIC are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-11
+
+Telemetry and live control of transport and buffering.
+
+### Added
+
+- Transport rack: change codec, frame size and bitrate while playing. Options
+  that cannot fit one datagram are disabled, and switching codec shortens the
+  frame when it must. Readouts show bitrate on the wire, packets per second
+  and payload size.
+- Jitter buffer rack: adaptive tuning on or off, with a fixed buffer size to
+  use when it is off.
+- Telemetry rack per remote player: estimated interface-to-ears latency with
+  its breakdown, buffer held and target, 99th percentile lateness, jitter,
+  packet loss, dropouts, receive bitrate and drift correction, plus a
+  one-minute trace of buffer, target and lateness with dropout marks and a
+  hover readout.
+- Relay round trip and send bitrate in the console header.
+- Playback device picker, where the browser supports choosing an output.
+- Audio defaults panel on the profile page. Settings changed inside a room
+  are saved automatically and used the next time.
+
+### Changed
+
+- Drift correction is limited to 0.2% (about 3.5 cents) instead of 0.5%, so
+  pitch stays steady while the buffer is being recentred.
+- The buffer skips ahead only on sustained excess, judged on the smoothed
+  fill, so a normal burst of arrivals no longer triggers a skip.
+
 ## [0.3.0] - 2026-10-11
 
 Audio. Two players in a room now hear each other.
@@ -91,7 +120,8 @@ system. No audio yet.
 - Lint-enforced size budgets: 200 lines per file, 40 lines per function
   (60 for components), complexity 10.
 
-[Unreleased]: https://github.com/kizzbonez/just-jam/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/kizzbonez/just-jam/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/kizzbonez/just-jam/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/kizzbonez/just-jam/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kizzbonez/just-jam/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kizzbonez/just-jam/releases/tag/v0.1.0
