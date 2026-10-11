@@ -1,0 +1,50 @@
+# secsuite targets for ToneLink QUIC. Run from the host (PowerShell), for example:
+#
+#   docker exec security-suite-worker-1 python -m secsuite `
+#     --targets /repos/just-jam/security/secsuite/targets.yml `
+#     scan --target tonelink-source --profile static
+#
+# The secsuite worker mounts the Documents folder at /repos, so the path below
+# is this checkout's folder name (just-jam on the machine it was built on).
+# Host-published ports are reached through host.docker.internal.
+
+targets:
+
+  # Source tree: SAST, dependency CVEs, committed secrets, IaC misconfiguration,
+  # plus the quality and architecture profiles.
+  tonelink-source:
+    kind: repo
+    source_path: /repos/just-jam
+    semgrep_config: auto
+
+  # The running studio as an anonymous visitor sees it. Only the sign-in
+  # screens may answer; everything under sensitive_paths must be refused.
+  tonelink-web:
+    kind: web
+    base_url: http://host.docker.internal:3410
+    sensitive_paths:
+      - /lobby
+      - /profile
+      - /security
+      - /admin
+      - /history
+      - /docs
+      - /guide/console.png
+      - /engine/transport.worker.js
+      - /api/rooms
+      - /api/profile
+      - /api/admin/settings
+      - /_next/image?url=%2Fguide%2Fconsole.png&w=1920&q=75
+    e2e_paths:
+      - /login
+    e2e_wait: networkidle
+    e2e_min_text: 40
+
+  # Built images, for OS and runtime package CVEs.
+  tonelink-image-web:
+    kind: image
+    image: tonelink-web:latest
+
+  tonelink-image-relay:
+    kind: image
+    image: tonelink-relay:latest

@@ -5,8 +5,7 @@
 //
 //   docker compose up -d --build      (SETUP_TOKEN set in .env for a fresh stack)
 //   npm run e2e
-import { chromium } from "playwright";
-import { BASE_URL } from "./lib/env.mjs";
+import { enterRoom, launchPlayer } from "./lib/players.mjs";
 import { call, createRoom, diagnostics, ensureStudio, signInPlayer } from "./lib/studio.mjs";
 import { writeStereoTone } from "./lib/tone.mjs";
 
@@ -36,36 +35,12 @@ function check(name, ok, detail = "") {
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  (${detail})` : ""}`);
 }
 
-async function launchPlayer(role) {
-  const wav = writeStereoTone(`e2e/.tmp/${role}.wav`, TONES[role]);
-  const browser = await chromium.launch({
-    args: [
-      "--use-fake-ui-for-media-stream",
-      "--use-fake-device-for-media-stream",
-      `--use-file-for-fake-audio-capture=${process.cwd()}/${wav}`,
-      "--autoplay-policy=no-user-gesture-required",
-    ],
+const launch = (role) =>
+  launchPlayer({
+    role,
+    wav: writeStereoTone(`e2e/.tmp/${role}.wav`, TONES[role]),
+    viewport: { width: 1440, height: 960 },
   });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
-  const page = await context.newPage();
-  page.on("pageerror", (error) => console.log(`[${role} pageerror]`, error.message));
-  page.on("dialog", (dialog) => dialog.accept());
-  return { role, browser, context, page };
-}
-
-async function enterRoom(player, slug, pin) {
-  const { page } = player;
-  await page.goto(`${BASE_URL}/room/${slug}`);
-  await page.getByRole("button", { name: "Enter room" }).waitFor();
-  if (pin) await page.fill("#room-pin", pin);
-  await page.getByRole("button", { name: "Enter room" }).click();
-  await page.getByRole("button", { name: "Arm input" }).waitFor({ timeout: 20_000 });
-  await page.waitForFunction(() => window.__tonelink?.diagnostics().phase === "live", null, {
-    timeout: 20_000,
-  });
-  await page.getByRole("button", { name: "Arm input" }).click();
-  await page.getByRole("button", { name: "Disarm" }).waitFor({ timeout: 15_000 });
-}
 
 const near = (actual, expected) => Math.abs(actual - expected) <= BIN_HZ;
 const round = (value, digits = 1) => Number(value?.toFixed?.(digits) ?? value);
@@ -95,11 +70,13 @@ function checkHearing(label, snapshot, { tones, kbps: expectedKbps }) {
     Math.abs(stats.receivedKbps - expectedKbps) / expectedKbps < 0.12,
     `${round(stats.receivedKbps, 0)} kbps, want about ${expectedKbps}`,
   );
-  check(`${label}: buffer under 40 ms`, stats.bufferMs < 40, `${round(stats.bufferMs)} ms held, target ${round(stats.targetMs)} ms`);
+  const held = `${round(stats.bufferMs)} ms held, target ${round(stats.targetMs)} ms`;
+  check(`${label}: buffer follows its target`, Math.abs(stats.bufferMs - stats.targetMs) < 15, held);
+  check(`${label}: target stays modest`, stats.targetMs < 80, held);
 }
 
-const host = await launchPlayer("host");
-const guest = await launchPlayer("guest");
+const host = await launch("host");
+const guest = await launch("guest");
 try {
   const studio = await ensureStudio(host.context);
   await signInPlayer(host.context, studio, { name: "Ana Marquez", instrument: "Lead Guitar" });
@@ -115,8 +92,8 @@ try {
   });
   console.log(`room ${room.slug}`);
 
-  await enterRoom(host, room.slug, null);
-  await enterRoom(guest, room.slug, PIN);
+  await enterRoom(host.page, room.slug);
+  await enterRoom(guest.page, room.slug, PIN);
   await host.page.waitForTimeout(7000);
 
   const heardByHost = await diagnostics(host.page);

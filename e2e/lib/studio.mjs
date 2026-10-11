@@ -6,7 +6,8 @@ import * as OTPAuth from "otpauth";
 import { BASE_URL, SETUP_TOKEN } from "./env.mjs";
 
 const STATE_FILE = "e2e/.tmp/state.json";
-const OWNER = {
+
+export const OWNER = {
   email: "owner@tonelink.test",
   displayName: "Studio Owner",
   password: "e2e-owner-password-1",
@@ -35,28 +36,32 @@ async function expectOk(result, what) {
   return result.body;
 }
 
-function loadState() {
+export function loadState() {
   return existsSync(STATE_FILE) ? JSON.parse(readFileSync(STATE_FILE, "utf8")) : null;
 }
 
-function saveState(state) {
+export function saveState(state) {
   mkdirSync("e2e/.tmp", { recursive: true });
   writeFileSync(STATE_FILE, JSON.stringify(state, null, 1));
   return state;
 }
 
+/** True while the studio has no owner. The setup token only verifies until then. */
+export async function studioIsFresh(context) {
+  if (!SETUP_TOKEN) return false;
+  const probe = await call(context, "/api/setup/verify", { data: { token: SETUP_TOKEN } });
+  return probe.status === 200;
+}
+
 /**
  * Makes sure the studio has an owner. On a fresh install it runs first-run
- * setup with SETUP_TOKEN (set it in .env before starting the stack) and
- * remembers the owner's credentials in e2e/.tmp for later runs.
+ * setup through the API with SETUP_TOKEN (set it in .env before starting the
+ * stack) and remembers the owner's credentials in e2e/.tmp for later runs.
  */
 export async function ensureStudio(context) {
-  // The setup token only verifies while the studio has no owner yet.
-  const probe = SETUP_TOKEN ? await call(context, "/api/setup/verify", { data: { token: SETUP_TOKEN } }) : null;
-  const fresh = probe?.status === 200;
-  const state = loadState();
-  if (!fresh && state) return state;
-  if (!fresh) {
+  if (!(await studioIsFresh(context))) {
+    const state = loadState();
+    if (state) return state;
     throw new Error(`No e2e state in ${STATE_FILE}. Start a fresh stack with SETUP_TOKEN set in .env.`);
   }
   const draft = { token: SETUP_TOKEN, ...OWNER, registrationMode: "INVITE" };
@@ -101,10 +106,17 @@ export async function signInPlayer(context, state, { name, instrument }) {
   return state.players[name];
 }
 
+/** Signs the context in as the owner, waiting out a code that was just used. */
 export async function signInOwner(context, state) {
   await expectOk(await call(context, "/api/auth/login", { data: state.owner }), "owner login");
-  const code = totp(state.totpSecret);
-  await expectOk(await call(context, "/api/auth/mfa", { data: { code } }), "owner mfa");
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const result = await call(context, "/api/auth/mfa", { data: { code: totp(state.totpSecret) } });
+    if (result.status === 200) return;
+    // A code is single use per 30 second step: wait for the next one.
+    const untilNextStep = 30_000 - (Date.now() % 30_000) + 750;
+    await new Promise((resolve) => setTimeout(resolve, untilNextStep));
+  }
+  throw new Error("owner mfa failed");
 }
 
 export async function createRoom(context, room) {
