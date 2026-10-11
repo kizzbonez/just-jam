@@ -1,5 +1,6 @@
 # ToneLink QUIC: web app + QUIC relay + PostgreSQL.
-# Every published port binds to 127.0.0.1. The database publishes none.
+# Every published port binds to 127.0.0.1 and the database publishes none.
+# The one exception you may choose to make is RELAY_BIND, see .env.example.
 name: tonelink
 
 x-hardening: &hardening
@@ -80,8 +81,9 @@ services:
       RELAY_ALLOWED_ORIGINS: ${APP_URL:-http://127.0.0.1:3410},${ALLOWED_ORIGINS:-}
       RELAY_CERT_HOSTS: ${RELAY_CERT_HOSTS:-127.0.0.1,localhost}
     ports:
-      # WebTransport runs over HTTP/3, which is UDP only.
-      - "127.0.0.1:${RELAY_PORT:-4433}:4433/udp"
+      # WebTransport runs over HTTP/3, which is UDP only, so no HTTP tunnel can
+      # carry it. RELAY_BIND=0.0.0.0 opens it to other machines.
+      - "${RELAY_BIND:-127.0.0.1}:${RELAY_PORT:-4433}:4433/udp"
     networks: [edge]
 
 networks:

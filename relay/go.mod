@@ -1,4 +1,4 @@
-module github.com/kizzbonez/just-jam/relay
+module github.com/kizzbonez/tonelink/relay
 
 go 1.27
 
