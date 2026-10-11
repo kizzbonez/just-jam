@@ -9,10 +9,10 @@ describe("isSafeSocketUrl", () => {
 
   // The plain addresses below are inputs to the check, not connections.
   it("accepts an unencrypted address only on this machine", () => {
-    expect(isSafeSocketUrl("ws://127.0.0.1:4434")).toBe(true); // nosemgrep: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket
-    expect(isSafeSocketUrl("ws://localhost:4434")).toBe(true); // nosemgrep: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket
-    expect(isSafeSocketUrl("ws://relay.example.com")).toBe(false);
-    expect(isSafeSocketUrl("ws://192.168.1.20:4434")).toBe(false);
+    expect(isSafeSocketUrl("ws://127.0.0.1:4434")).toBe(true);
+    expect(isSafeSocketUrl("ws://localhost:4434")).toBe(true);
+    expect(isSafeSocketUrl("ws://relay.example.com")).toBe(false); // nosemgrep: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket
+    expect(isSafeSocketUrl("ws://192.168.1.20:4434")).toBe(false); // nosemgrep: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket
   });
 
   it("refuses anything that is not a WebSocket address", () => {
