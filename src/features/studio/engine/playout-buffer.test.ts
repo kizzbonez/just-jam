@@ -101,12 +101,13 @@ describe("PlayoutBuffer", () => {
   it("speeds up slightly when the sender's clock runs fast", () => {
     const buffer = new PlayoutBuffer(8192, 480);
     buffer.configure(480, FRAME);
-    // The sender delivers 0.4% more audio than is played back.
+    // The sender delivers 0.1% more audio than is played back, which is
+    // already ten times the drift of a typical pair of sound cards.
     let owed = 0;
     let written = 0;
     let fastest = 1;
-    for (let i = 0; i < 6000; i++) {
-      owed += QUANTUM * 1.004;
+    for (let i = 0; i < 12_000; i++) {
+      owed += QUANTUM * 1.001;
       while (owed >= FRAME) {
         buffer.write(rampFrame(written), FRAME);
         written += FRAME;
@@ -116,9 +117,9 @@ describe("PlayoutBuffer", () => {
       fastest = Math.max(fastest, buffer.takeStats().rate);
     }
     expect(fastest).toBeGreaterThan(1);
-    expect(fastest).toBeLessThanOrEqual(1.005);
+    expect(fastest).toBeLessThanOrEqual(1.002);
     expect(buffer.fill).toBeLessThan(480 + 720);
-    expect(buffer.takeStats().underruns).toBe(0);
+    expect(buffer.takeStats()).toMatchObject({ underruns: 0, skips: 0 });
   });
 
   it("conceals a gap with a fade to silence and fades the next frame in", () => {

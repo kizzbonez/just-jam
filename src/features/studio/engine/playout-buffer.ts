@@ -9,7 +9,8 @@
  *    latency this stage adds;
  *  - when the ring runs dry it fades out, refills to the target and resumes;
  *  - when it drifts from the target (two sound cards never run at exactly the
- *    same rate) the read speed is nudged by at most half a percent;
+ *    same rate) the read speed is nudged by at most 0.2%, about 3.5 cents,
+ *    which is below what a listener hears as a change of pitch;
  *  - when it is far over the target after a network stall, the excess is
  *    dropped with a short crossfade so latency cannot creep.
  *
@@ -18,7 +19,9 @@
 import { hermite } from "@/features/studio/engine/interpolate";
 
 const FADE = 48;
-const MAX_RATE_OFFSET = 0.005;
+const MAX_RATE_OFFSET = 0.002;
+/** How hard the read rate pulls the fill back to the target, per second. */
+const DRIFT_GAIN = 0.35;
 const FILL_SMOOTHING = 0.004;
 /** Samples kept in hand so interpolation never reads past the writer. */
 const GUARD = 4;
@@ -151,7 +154,9 @@ export class PlayoutBuffer {
 
   /** Chooses the read rate, or jumps ahead when far too much is queued. */
   private steer(frames: number): void {
-    if (this.fill - this.target > this.skipMargin + frames) {
+    // Judged on the smoothed fill: a burst of arrivals between two reads is
+    // normal, audio piling up for a third of a second is not.
+    if (this.smoothFill - this.target > this.skipMargin) {
       this.fadeFrom = Math.round(this.readPos);
       this.readPos = this.writeIndex - this.target - frames;
       this.smoothFill = this.fill;
@@ -167,7 +172,7 @@ export class PlayoutBuffer {
       this.rate = 1;
       return;
     }
-    const offset = (error / 48_000) * 0.5;
+    const offset = (error / 48_000) * DRIFT_GAIN;
     this.rate = 1 + Math.max(-MAX_RATE_OFFSET, Math.min(MAX_RATE_OFFSET, offset));
   }
 

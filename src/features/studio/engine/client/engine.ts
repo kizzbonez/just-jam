@@ -59,7 +59,9 @@ export class StudioEngine {
       capture.port2,
     ]);
     const input = new LocalInput(context, capture.port1);
-    return new StudioEngine({ context, worker, input }, profile);
+    const engine = new StudioEngine({ context, worker, input }, profile);
+    if (profile.outputDeviceId) void engine.setOutputDevice(profile.outputDeviceId);
+    return engine;
   }
 
   private command(command: WorkerCommand, transfer: Transferable[] = []): void {
@@ -190,10 +192,15 @@ export class StudioEngine {
     this.command({ t: "kick", slot });
   }
 
-  async setOutputDevice(deviceId: string): Promise<void> {
+  /** Routes playback to a device, or back to the system default with null. */
+  async setOutputDevice(deviceId: string | null): Promise<void> {
     const context = this.context as AudioContext & { setSinkId?: (id: string) => Promise<void> };
-    await context.setSinkId?.(deviceId);
-    this.store.set({ profile: { ...this.store.getState().profile, outputDeviceId: deviceId } });
+    try {
+      await context.setSinkId?.(deviceId ?? "");
+      this.store.set({ profile: { ...this.store.getState().profile, outputDeviceId: deviceId } });
+    } catch {
+      this.store.set({ engineError: "That playback device could not be used." });
+    }
   }
 
   dispose(): void {
