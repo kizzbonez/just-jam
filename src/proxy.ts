@@ -50,6 +50,7 @@ async function gate(request: NextRequest): Promise<NextResponse> {
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const response = await gate(request);
+  if (response.status !== 200) response.headers.set("Cache-Control", "no-store");
   response.headers.set("Content-Security-Policy", contentSecurityPolicy());
   if (isSecureOrigin()) {
     response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
