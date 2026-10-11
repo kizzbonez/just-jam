@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 1.0.0" src="https://img.shields.io/badge/version-1.0.0-dc2626?style=flat-square">
+  <img alt="Version 1.1.0" src="https://img.shields.io/badge/version-1.1.0-dc2626?style=flat-square">
   <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-09090b?style=flat-square&logo=nextdotjs">
   <img alt="Go relay" src="https://img.shields.io/badge/relay-Go%20%2B%20quic--go-09090b?style=flat-square&logo=go">
   <img alt="Docker Compose" src="https://img.shields.io/badge/runs%20in-Docker%20Compose-09090b?style=flat-square&logo=docker">
@@ -115,7 +115,7 @@ cannot cause a glitch.
 | Capture worklet | Audio thread | Routes the two inputs, cuts frames, hands each to the worker |
 | Transport worker | Worker | WebTransport session, encoder, one decoder and estimator per remote player |
 | Playback worklet | Audio thread, one per player | The jitter buffer: target fill, drift correction, concealment |
-| Relay | Go container | Admits ticket holders, stamps the sender on each datagram, fans out |
+| Relay | Go container | Admits ticket holders, stamps the sender on each packet, fans out. Speaks WebTransport and a WebSocket fallback |
 | Web app | Next.js container | Accounts, rooms, and the signed tickets the relay trusts |
 
 A room ticket is a 60-second signed token. The web app issues one only after
@@ -149,16 +149,23 @@ Use a current **Chrome or Edge** on a computer, and **headphones**.
 Out of the box every port is bound to `127.0.0.1`. Two things have to be reachable
 before someone on another network can join.
 
-| Part | Protocol | How to expose it |
+| Part | Route | How to expose it |
 |---|---|---|
 | Web app | HTTPS | Any reverse proxy or tunnel that terminates TLS, pointed at `http://127.0.0.1:3410` |
-| Relay | **UDP** | A directly reachable UDP port. HTTP tunnels cannot carry it |
+| Relay, direct | **QUIC over UDP** | A directly reachable UDP port: a forwarded port on your router, or a server with a public address |
+| Relay, fallback | WebSocket over HTTPS | A tunnel or proxy pointed at `http://127.0.0.1:4434`, and `RELAY_WS_URL` set to its public `wss://` address |
+
+Each browser tries the direct route first and falls back to WebSocket if it does
+not answer within three seconds. Players on different routes can share a room,
+and a badge beside the room name shows which one you are on.
 
 > [!IMPORTANT]
-> WebTransport is HTTP/3, which runs over UDP. A tunnel that forwards HTTP over
-> TCP, Cloudflare Tunnel included, can serve the web app but not the relay. The
-> relay needs a forwarded UDP port on your router, or a small server with a
-> public address. Run it close to the players: network delay is distance.
+> The two routes are not equal. QUIC datagrams go straight to the relay and are
+> never retransmitted. The fallback is TCP and takes whatever detour the tunnel
+> takes: a tunnel can serve the web app, but it cannot carry UDP. Measure the
+> fallback with `node e2e/ws-probe.mjs` before relying on it. A 20 ms round trip
+> is playable; one of several hundred milliseconds is for listening, not for
+> playing in time. Run the relay close to the players: network delay is distance.
 
 ```ini
 APP_URL=https://studio.example.com
@@ -168,8 +175,8 @@ RELAY_CERT_HOSTS=relay.example.com
 RELAY_BIND=0.0.0.0
 ```
 
-`relay.example.com` must resolve straight to the relay's machine (not proxied),
-with UDP 4433 forwarded to it. The relay issues its own certificate and hands the
+For the direct route, `relay.example.com` must resolve straight to the relay's
+machine (not proxied), with UDP 4433 forwarded to it. The relay issues its own certificate and hands the
 fingerprint to each browser with the room ticket, so no certificate authority is
 involved.
 
@@ -184,6 +191,8 @@ Settings live in `.env`, created by `npm run env:init` and never overwritten.
 | `RELAY_PUBLIC_URL` | `https://127.0.0.1:4433` | Where browsers reach the relay |
 | `RELAY_CERT_HOSTS` | `127.0.0.1,localhost` | Names on the relay's self-signed certificate |
 | `RELAY_BIND` | `127.0.0.1` | Address the relay's UDP port is bound to |
+| `RELAY_WS_URL` | empty | Public `wss://` address of the WebSocket fallback. Empty turns it off |
+| `RELAY_WS_PORT` | `4434` | Host port of the fallback, bound to `127.0.0.1` |
 | `WEB_PORT` / `RELAY_PORT` | `3410` / `4433` | Host ports |
 | `AUTH_SECRET` | generated | Signs sessions, encrypts authenticator secrets |
 | `RELAY_SHARED_SECRET` | generated | Signs room tickets; shared by web and relay |
@@ -218,7 +227,8 @@ the audio after each step.
 | `npm run check` | ESLint with size budgets, TypeScript, and the unit tests |
 | `npm test` | Unit tests: wire format, PCM, jitter buffer, tuner, auth, schemas |
 | `docker compose build relay` | Builds the relay and runs `go vet` and `go test` |
-| `npm run e2e` | Two browsers, real audio, through the Docker stack |
+| `npm run e2e` | Two browsers, real audio, through the Docker stack, including a room with one player on each route |
+| `node e2e/ws-probe.mjs` | Connects through the public fallback address and prints its round trip |
 | `npm run shots` | Regenerates every screenshot in this README and the guide |
 
 > [!NOTE]
@@ -272,6 +282,8 @@ are lint errors, not guidelines.
 - Every player sends to every other player through the relay, so bandwidth grows
   with the room. Rooms are capped at 8.
 - Lost packets are concealed, not recovered. There is no forward error correction.
+- The WebSocket fallback is TCP. It keeps players connected where UDP is blocked,
+  with more delay and less steady timing than the direct route.
 - The relay keeps rooms and bans in memory. Restarting it disconnects everyone.
 
 ## Changelog

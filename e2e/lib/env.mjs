@@ -14,3 +14,5 @@ const file = readEnvFile(".env");
 
 export const BASE_URL = process.env.E2E_BASE_URL ?? file.APP_URL ?? "http://127.0.0.1:3410";
 export const SETUP_TOKEN = process.env.SETUP_TOKEN ?? file.SETUP_TOKEN ?? "";
+/** The WebSocket fallback address, when the stack under test has one. */
+export const RELAY_WS_URL = process.env.RELAY_WS_URL ?? file.RELAY_WS_URL ?? "";

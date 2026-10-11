@@ -6,6 +6,42 @@ All notable changes to ToneLink QUIC are recorded here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-11
+
+A second way to reach the relay, for networks where UDP cannot get through,
+and fixes found by putting the studio behind a CDN.
+
+### Added
+
+- WebSocket fallback. The relay accepts the same packets over a WebSocket on
+  `127.0.0.1:4434`, which any HTTPS tunnel or reverse proxy can front. Set
+  `RELAY_WS_URL` to its public `wss://` address. Each browser tries QUIC first
+  and falls back within three seconds; players on either route share a room.
+- A badge beside the room name shows the route in use, and a notice explains
+  what the fallback costs: it is TCP, so latency is higher and less steady.
+- `node e2e/ws-probe.mjs` connects through the public fallback address and
+  prints its round trip, the figure that decides whether it is playable.
+- The fallback also lets browsers without WebTransport join.
+- The end-to-end test covers a room with one player on each route.
+
+### Fixed
+
+- A new build could run against an old audio engine. The worker and worklets
+  load by URL, and a CDN in front of the app told browsers to keep them for
+  hours. Their URLs now carry a fingerprint of the build.
+- A refusal could be cached and then served to signed-in users. A CDN stored
+  the 404 an anonymous visitor received for the engine script. Refusals are
+  now sent `no-store`, and files behind sign-in are sent `private`.
+- A relay address that only works on the server itself is now explained to the
+  player, with what has to change, instead of a generic connection error.
+- An audio engine that fails to load ends the session with a message instead
+  of leaving the console stuck on "Connecting".
+
+### Security
+
+- AES-GCM calls pin the authentication tag length.
+- The web image has its own HEALTHCHECK.
+
 ## [1.0.0] - 2026-10-11
 
 First complete release: the guide, a public home page, a security pass and
@@ -161,7 +197,8 @@ system. No audio yet.
 - Lint-enforced size budgets: 200 lines per file, 40 lines per function
   (60 for components), complexity 10.
 
-[Unreleased]: https://github.com/kizzbonez/tonelink/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/kizzbonez/tonelink/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/kizzbonez/tonelink/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/kizzbonez/tonelink/compare/v0.4.0...v1.0.0
 [0.4.0]: https://github.com/kizzbonez/tonelink/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/kizzbonez/tonelink/compare/v0.2.0...v0.3.0

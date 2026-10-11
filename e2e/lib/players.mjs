@@ -25,9 +25,12 @@ export async function launchPlayer({ role, wav, viewport = { width: 1440, height
 
 const isLive = () => window.__tonelink?.diagnostics().phase === "live";
 
-/** Goes through the entry screen and arms the input, as a player would. */
-export async function enterRoom(page, slug, pin = null) {
-  await page.goto(`${BASE_URL}/room/${slug}`);
+/**
+ * Goes through the entry screen and arms the input, as a player would.
+ * `query` is appended to the room address, for example "?transport=websocket".
+ */
+export async function enterRoom(page, slug, { pin = null, query = "" } = {}) {
+  await page.goto(`${BASE_URL}/room/${slug}${query}`);
   await page.getByRole("button", { name: "Enter room" }).waitFor();
   if (pin) await page.fill("#room-pin", pin);
   await page.getByRole("button", { name: "Enter room" }).click();

@@ -17,7 +17,7 @@ const ENTERING: SpecRow[] = [
   {
     name: "Relay is set up for local use only",
     value: "The relay address is 127.0.0.1",
-    note: "The web app was published but the relay was not. Publish the relay's UDP port and set RELAY_PUBLIC_URL to an address other devices can reach. See Self-hosting.",
+    note: "The web app was published but the relay was not. Publish the relay's UDP port, or set up the WebSocket fallback. See Self-hosting.",
   },
   {
     name: "Could not reach the audio relay",
@@ -43,6 +43,19 @@ const ENTERING: SpecRow[] = [
     name: "Joined from another tab",
     value: "Second connection",
     note: "The same account entered the room elsewhere. The newest connection wins.",
+  },
+];
+
+const TRANSPORT_ROWS: SpecRow[] = [
+  {
+    name: "Badge reads WebSocket",
+    value: "The fallback is in use",
+    note: "This device could not reach the relay's UDP port, so audio is going over TCP through a proxy or tunnel. It works, with more delay.",
+  },
+  {
+    name: "Relay RTT in the hundreds",
+    value: "A long detour",
+    note: "On the fallback, the round trip is the trip to the tunnel provider's data centre and back. Use the direct route to play in time.",
   },
 ];
 
@@ -114,13 +127,16 @@ export function Troubleshooting() {
       <Section id="entering" n="01" title="Getting in">
         <Spec head={HEAD} rows={ENTERING} />
       </Section>
-      <Section id="input" n="02" title="Your input">
+      <Section id="route" n="02" title="The route to the relay">
+        <Spec head={["Reading", "Meaning", "What to do"]} rows={TRANSPORT_ROWS} />
+      </Section>
+      <Section id="input" n="03" title="Your input">
         <Spec head={HEAD} rows={INPUT} />
       </Section>
-      <Section id="sound" n="03" title="What you hear">
+      <Section id="sound" n="04" title="What you hear">
         <Spec head={["Reading", "Meaning", "What to do"]} rows={SOUND} />
       </Section>
-      <Section id="report" n="04" title="Reporting a problem">
+      <Section id="report" n="05" title="Reporting a problem">
         <P>
           While a room is open, the browser console exposes a read-only snapshot of the session.
           Run <Code>copy(JSON.stringify(__tonelink.diagnostics(), null, 2))</Code> and paste the

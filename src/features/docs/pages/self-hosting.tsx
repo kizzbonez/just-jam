@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Figure } from "@/features/docs/components/figure";
 import {
-  Callout,
   Code,
   Lead,
   List,
@@ -10,9 +9,9 @@ import {
   Section,
   Spec,
   Steps,
-  Strong,
   type SpecRow,
 } from "@/features/docs/components/prose";
+import { RemotePlay } from "@/features/docs/pages/self-hosting-remote";
 
 const START = `npm run env:init            # writes .env with random secrets
 docker compose up -d --build
@@ -33,7 +32,7 @@ const SETUP_STEPS: ReactNode[] = [
 
 const SERVICES: SpecRow[] = [
   { name: "web", value: "127.0.0.1:3410 tcp", note: "Next.js app: pages, API, tickets. Runs read-only, as a non-root user." },
-  { name: "relay", value: "127.0.0.1:4433 udp", note: "Go QUIC relay. Forwards audio datagrams, keeps no data. Its admin API is not published." },
+  { name: "relay", value: "127.0.0.1:4433 udp, 127.0.0.1:4434 tcp", note: "Go relay. Forwards audio packets, keeps no data. UDP is the direct QUIC route, TCP the WebSocket fallback. Its admin API is not published." },
   { name: "db", value: "none", note: "PostgreSQL on an internal network that only the web app can reach." },
   { name: "migrate", value: "none", note: "Runs once per start, applies database migrations, exits." },
 ];
@@ -48,42 +47,8 @@ const VARIABLES: SpecRow[] = [
   { name: "SETUP_TOKEN", value: "empty", note: "Fix the first-run token instead of having a random one logged." },
   { name: "WEB_PORT / RELAY_PORT", value: "3410 / 4433", note: "Host ports. The web port is always bound to 127.0.0.1." },
   { name: "RELAY_BIND", value: "127.0.0.1", note: "Address the relay's UDP port is bound to. Set 0.0.0.0 to let other machines reach it." },
-];
-
-const REACHABLE: ReactNode[] = [
-  <>
-    <Strong>The web app over HTTPS.</Strong> Browsers allow microphone access and WebTransport
-    only on a secure origin. Put it behind a reverse proxy or tunnel that terminates TLS, and set{" "}
-    <Code>APP_URL</Code> to the public address.
-  </>,
-  <>
-    <Strong>The relay over UDP.</Strong> WebTransport is HTTP/3, which is UDP only. Publish the
-    relay&apos;s port on an address the players can reach, and set <Code>RELAY_PUBLIC_URL</Code>{" "}
-    and <Code>RELAY_CERT_HOSTS</Code> to match.
-  </>,
-];
-
-const PUBLIC_ENV = `APP_URL=https://studio.example.com
-ALLOWED_ORIGINS=http://127.0.0.1:3410
-RELAY_PUBLIC_URL=https://relay.example.com:4433
-RELAY_CERT_HOSTS=relay.example.com
-RELAY_BIND=0.0.0.0`;
-
-const PUBLIC_STEPS: ReactNode[] = [
-  <>
-    Point your tunnel or reverse proxy for <Code>studio.example.com</Code> at{" "}
-    <Code>http://127.0.0.1:3410</Code> (from a tunnel container:{" "}
-    <Code>http://host.docker.internal:3410</Code>).
-  </>,
-  <>
-    Create a DNS record <Code>relay.example.com</Code> that resolves straight to the machine
-    running the relay. It must not be proxied.
-  </>,
-  "Forward UDP port 4433 from your router or firewall to that machine.",
-  <>
-    Put the values below in <Code>.env</Code> and run <Code>docker compose up -d</Code>.
-  </>,
-  "Open a room from a second network, such as a phone hotspot, and check that the console goes Live.",
+  { name: "RELAY_WS_URL", value: "empty", note: "Public wss:// address of the WebSocket fallback. Empty turns the fallback off." },
+  { name: "RELAY_WS_PORT", value: "4434", note: "Host port of the fallback, always bound to 127.0.0.1. Point a tunnel or proxy at it." },
 ];
 
 const OPERATIONS: ReactNode[] = [
@@ -112,37 +77,11 @@ function Starting() {
   );
 }
 
-function Remote() {
-  return (
-    <Section id="remote" n="04" title="Playing with people elsewhere">
-      <P>
-        As shipped, only this computer can reach the studio. To play with others, two things have
-        to be reachable from their browsers.
-      </P>
-      <List items={REACHABLE} />
-      <Callout tone="warn" title="HTTP tunnels do not carry the relay">
-        A tunnel or proxy that forwards HTTP over TCP, Cloudflare Tunnel included, can serve the
-        web app but cannot carry the relay&apos;s UDP traffic. The relay needs a directly reachable
-        UDP port: a forwarded port on your router, or a small server with a public address. For the
-        lowest latency, run it near the players.
-      </Callout>
-      <P>
-        The relay issues its own certificate, valid for 13 days and renewed every six, and hands
-        its fingerprint to the web app, which gives it to each browser along with the room ticket.
-        No certificate authority is involved. To use a CA-issued certificate instead, set{" "}
-        <Code>TLS_CERT_FILE</Code> and <Code>TLS_KEY_FILE</Code> on the relay.
-      </P>
-      <Steps items={PUBLIC_STEPS} />
-      <Pre>{PUBLIC_ENV}</Pre>
-    </Section>
-  );
-}
-
 export function SelfHosting() {
   return (
     <>
       <Lead>
-        ToneLink runs as three containers: the web app, the QUIC relay and PostgreSQL. Out of the
+        ToneLink runs as three containers: the web app, the relay and PostgreSQL. Out of the
         box every published port is bound to this machine only.
       </Lead>
       <Starting />
@@ -156,7 +95,7 @@ export function SelfHosting() {
         </P>
         <Spec head={["Variable", "Default", "Meaning"]} rows={VARIABLES} />
       </Section>
-      <Remote />
+      <RemotePlay />
       <Section id="operate" n="05" title="Updating and backing up">
         <Pre>{UPDATE}</Pre>
         <List items={OPERATIONS} />

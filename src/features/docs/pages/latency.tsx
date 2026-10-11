@@ -14,7 +14,7 @@ import {
 const STAGES: SpecRow[] = [
   { name: "Capture", value: "3 to 10 ms", note: "The other player's interface and driver. Reported by their browser." },
   { name: "Framing", value: "1.25 to 12.5 ms", note: "Half a frame on average, plus 2.5 ms of lookahead for Opus. You choose the frame size." },
-  { name: "Network", value: "distance", note: "Half of each player's round trip to the relay. Physics and routing." },
+  { name: "Network", value: "distance", note: "Half of each player's round trip to the relay. Physics and routing, and much longer on the WebSocket fallback than on the direct QUIC route." },
   { name: "Buffer", value: "5 to 40 ms", note: "Audio held to absorb uneven arrival. Tuned automatically, or fixed by you." },
   { name: "Output", value: "3 to 40 ms", note: "Your own playback device and driver. Reported by your browser." },
 ];
@@ -59,6 +59,7 @@ const TIPS: ReactNode[] = [
   "Check Lateness p99. If it is high while Relay RTT is low, the unevenness is on a computer, not the network.",
   "Check Packet loss. Persistent loss means the link cannot carry the bitrate: lower it, or leave PCM for Opus.",
   "Run the relay close to the players. Network delay is distance, and nothing in software removes it.",
+  "Check the badge beside the room name. WebSocket means the fallback is in use; the direct QUIC route is the one built for playing in time.",
 ];
 
 function Sum() {

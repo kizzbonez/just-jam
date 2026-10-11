@@ -14,7 +14,8 @@ const PRINCIPLES: ReactNode[] = [
   </>,
   <>
     <Strong>Datagrams over QUIC.</Strong> Frames travel as unreliable datagrams, so a lost packet
-    is never retransmitted and never holds up the ones behind it.
+    is never retransmitted and never holds up the ones behind it. Where QUIC cannot get through, a
+    WebSocket fallback keeps you connected at the cost of more delay.
   </>,
   <>
     <Strong>A jitter buffer you can see.</Strong> Each player you hear has their own small buffer,

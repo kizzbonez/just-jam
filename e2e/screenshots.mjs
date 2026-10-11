@@ -139,8 +139,8 @@ try {
   await shooter(keys.page)("room-gate");
 
   await enterRoom(host.page, room.slug);
-  await enterRoom(bass.page, room.slug, "4821");
-  await enterRoom(keys.page, room.slug, "4821");
+  await enterRoom(bass.page, room.slug, { pin: "4821" });
+  await enterRoom(keys.page, room.slug, { pin: "4821" });
   await captureConsole(host, room);
 } finally {
   for (const [context, slug] of created) await closeRoom(context, slug).catch(() => undefined);

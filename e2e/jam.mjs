@@ -5,6 +5,7 @@
 //
 //   docker compose up -d --build      (SETUP_TOKEN set in .env for a fresh stack)
 //   npm run e2e
+import { RELAY_WS_URL } from "./lib/env.mjs";
 import { enterRoom, launchPlayer } from "./lib/players.mjs";
 import { call, closeRoom, createRoom, diagnostics, ensureStudio, signInPlayer } from "./lib/studio.mjs";
 import { writeStereoTone } from "./lib/tone.mjs";
@@ -95,7 +96,7 @@ try {
   console.log(`room ${room.slug}`);
 
   await enterRoom(host.page, room.slug);
-  await enterRoom(guest.page, room.slug, PIN);
+  await enterRoom(guest.page, room.slug, { pin: PIN });
   await host.page.waitForTimeout(7000);
 
   const heardByHost = await diagnostics(host.page);
@@ -153,6 +154,23 @@ try {
   await host.page.waitForTimeout(2500);
   const unmuted = await diagnostics(guest.page);
   check("unmute: audio resumes", unmuted.peers[0].stats.playing && unmuted.peers[0].stats.receivedKbps > 1000);
+
+  // One player on the WebSocket fallback, one on QUIC, in the same room.
+  if (RELAY_WS_URL) {
+    await call(guest.context, "/api/profile/audio", { data: START_PROFILE, method: "PUT" });
+    await call(host.context, "/api/profile/audio", { data: START_PROFILE, method: "PUT" });
+    await host.page.selectOption("#live-codec", "OPUS");
+    await enterRoom(guest.page, room.slug, { query: "?transport=websocket" });
+    await host.page.waitForTimeout(7000);
+    const viaQuic = await diagnostics(host.page);
+    const viaSocket = await diagnostics(guest.page);
+    check("fallback: guest is on WebSocket, host on QUIC", viaSocket.transport === "websocket" && viaQuic.transport === "quic", `${viaQuic.transport} / ${viaSocket.transport}`);
+    checkHearing("QUIC host hears WebSocket guest", viaQuic, { tones: TONES.guest, kbps: 256 });
+    checkHearing("WebSocket guest hears QUIC host", viaSocket, { tones: TONES.host, kbps: 256 });
+    console.log(`fallback link: guest rtt ${round(viaSocket.link.rttMs, 2)} ms via ${RELAY_WS_URL}`);
+  } else {
+    console.log("SKIP  fallback scenario: RELAY_WS_URL is not set");
+  }
 
   // The host removes the guest; the guest must be told why and kept out.
   await host.page.getByRole("button", { name: /Remove Bo Tanaka/ }).click();
