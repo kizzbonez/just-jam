@@ -162,6 +162,7 @@ func (h *Hub) remove(room *Room, p *Peer, reason string) {
 	p.gone.Store(true)
 	delete(room.peers, p.slot)
 	room.refresh()
+	room.forgetDirect(p.slot)
 	room.broadcast(peerLeftMsg{T: "peer-left", Slot: p.slot, Reason: reason}, nil)
 	if len(room.peers) == 0 {
 		delete(h.rooms, room.id)

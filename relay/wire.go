@@ -17,8 +17,10 @@ const (
 
 const (
 	maxRoomSize    = 16
-	maxControlLine = 2048
+	maxControlLine = 8192
 	maxStateBytes  = 512
+	// maxSignalBytes bounds one WebRTC negotiation message between two players.
+	maxSignalBytes = 6144
 )
 
 // Close codes the browser maps to messages. They are valid both as

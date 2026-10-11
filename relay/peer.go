@@ -43,6 +43,9 @@ type Peer struct {
 	// gone is set once the peer is out of its room; its audio is then discarded.
 	gone    atomic.Bool
 	dropped atomic.Uint64
+	// direct is a bitmask of the slots this peer reaches over its own WebRTC
+	// links. The relay does not forward the peer's audio to those slots.
+	direct atomic.Uint64
 
 	done chan struct{}
 	once sync.Once
@@ -91,6 +94,19 @@ func (p *Peer) sendControl(message any) {
 	case p.ctrl <- append(line, '\n'):
 	default:
 		p.close(closeProtocol, "control backlog full")
+	}
+}
+
+// offerControl queues a message that may be dropped: when the backlog is full
+// it is discarded and the peer stays connected.
+func (p *Peer) offerControl(message any) {
+	line, err := json.Marshal(message)
+	if err != nil {
+		return
+	}
+	select {
+	case p.ctrl <- append(line, '\n'):
+	default:
 	}
 }
 

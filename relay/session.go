@@ -17,7 +17,7 @@ import (
 
 const (
 	controlAcceptTimeout = 5 * time.Second
-	controlRatePerSecond = 30
+	controlRatePerSecond = 60
 	idleTimeout          = 20 * time.Second
 	keepAlive            = 5 * time.Second
 )
@@ -34,6 +34,10 @@ type controlIn struct {
 	T     string          `json:"t"`
 	Slot  uint8           `json:"slot"`
 	State json.RawMessage `json:"state"`
+	// Data is a negotiation message for the player in Slot.
+	Data json.RawMessage `json:"data"`
+	// Slots lists the players the sender reaches directly.
+	Slots []uint8 `json:"slots"`
 }
 
 func newRelay(cfg *Config, certs *CertStore, hub *Hub) *Relay {
@@ -152,8 +156,9 @@ func (r *Relay) handlePacket(peer *Peer, b []byte) {
 			return
 		}
 		b[1] = peer.slot
+		direct := peer.direct.Load()
 		for _, other := range *peer.room.fanout.Load() {
-			if other != peer {
+			if other != peer && direct&slotBit(other.slot) == 0 {
 				other.sendDatagram(b)
 			}
 		}
@@ -192,6 +197,10 @@ func (r *Relay) handleControl(peer *Peer, line []byte, limiter *controlLimiter) 
 		if r.hub.Kick(peer, message.Slot) {
 			slog.Info("peer kicked", "room", peer.claims.Room, "slot", message.Slot)
 		}
+	case "signal":
+		r.hub.Signal(peer, message.Slot, message.Data)
+	case "p2p":
+		peer.setDirect(message.Slots)
 	}
 	return true
 }
