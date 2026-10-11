@@ -32,6 +32,8 @@ export interface InputView {
   monitor: boolean;
   deviceId: string | null;
   label: string | null;
+  /** Capture delay the browser reports for the open input, in ms. */
+  latencyMs: number;
   error: string | null;
   busy: boolean;
 }
@@ -71,6 +73,7 @@ export class RoomStore {
         monitor: false,
         deviceId: profile.inputDeviceId,
         label: profile.inputLabel,
+        latencyMs: 0,
         error: null,
         busy: false,
       },

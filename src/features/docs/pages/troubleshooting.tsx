@@ -66,6 +66,11 @@ const TRANSPORT_ROWS: SpecRow[] = [
 
 const INPUT: SpecRow[] = [
   {
+    name: "Monitor sounds late or doubled",
+    value: "Your own computer's delay",
+    note: "The Monitor switch plays your input back through the browser, so you hear it after this computer's recording and playback delay, often 30 to 60 ms. Turn it off and use the direct monitoring on your audio interface.",
+  },
+  {
     name: "No interfaces listed",
     value: "No permission yet",
     note: "Browsers hide device names until access is granted. Press Arm input once and allow it.",

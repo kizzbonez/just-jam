@@ -6,6 +6,14 @@ All notable changes to ToneLink QUIC are recorded here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0-beta.4] - 2026-10-11
+
+### Added
+
+- With Monitor on, the interface rack says how late you hear yourself and why:
+  the delay is this computer recording and playing back, not the network, and
+  an interface's direct monitoring avoids it.
+
 ## [1.2.0-beta.3] - 2026-10-11
 
 ### Fixed
@@ -270,7 +278,8 @@ system. No audio yet.
 - Lint-enforced size budgets: 200 lines per file, 40 lines per function
   (60 for components), complexity 10.
 
-[Unreleased]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.3...HEAD
+[Unreleased]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.4...HEAD
+[1.2.0-beta.4]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.3...v1.2.0-beta.4
 [1.2.0-beta.3]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.2...v1.2.0-beta.3
 [1.2.0-beta.2]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.1...v1.2.0-beta.2
 [1.2.0-beta.1]: https://github.com/kizzbonez/tonelink/compare/v1.1.1...v1.2.0-beta.1

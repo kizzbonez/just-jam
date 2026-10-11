@@ -4,6 +4,7 @@ import { Mic, MicOff } from "lucide-react";
 import type { StudioEngine } from "@/features/studio/engine/client/engine";
 import type { InputView } from "@/features/studio/engine/client/room-store";
 import { Button } from "@/ui/primitives/button";
+import { Notice } from "@/ui/primitives/notice";
 import { Toggle } from "@/ui/primitives/toggle";
 import { LedMeter } from "@/ui/rack/led-meter";
 import { WaveScope } from "@/ui/rack/wave-scope";
@@ -32,6 +33,22 @@ export function InputMeters({ engine, armed }: { engine: StudioEngine; armed: bo
       </div>
       <WaveScope read={tap.readWave} label="Input waveform" />
     </div>
+  );
+}
+
+/**
+ * Monitoring through the browser goes in and out of the sound card, so it is
+ * never instant. Says how late it is, and what to use instead.
+ */
+export function MonitorNotice({ engine, input }: { engine: StudioEngine; input: InputView }) {
+  if (!input.armed || !input.monitor) return null;
+  const delayMs = Math.round(input.latencyMs + engine.outputLatencyMs);
+  return (
+    <Notice>
+      You hear yourself at least <span className="readout text-ink">{delayMs} ms</span> late. That
+      is this computer recording and playing back, not the network. To hear yourself with no
+      delay, turn Monitor off and use the direct monitoring on your audio interface.
+    </Notice>
   );
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { InputKeys, InputMeters } from "@/features/studio/components/input-keys";
+import { InputKeys, InputMeters, MonitorNotice } from "@/features/studio/components/input-keys";
 import { InterfaceFields } from "@/features/studio/components/interface-fields";
 import type { StudioEngine } from "@/features/studio/engine/client/engine";
 import type { InputView, RoomState } from "@/features/studio/engine/client/room-store";
@@ -62,6 +62,7 @@ export function InputRack({ engine, state }: InputRackProps) {
           ready={state.phase === "live"}
           onArm={() => arm(input.deviceId)}
         />
+        <MonitorNotice engine={engine} input={input} />
       </div>
     </RackUnit>
   );

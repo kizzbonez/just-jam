@@ -10,6 +10,13 @@ import { inputLatencyMs, openInput } from "@/features/studio/engine/client/captu
 import { SignalTap } from "@/features/studio/engine/client/signal-tap";
 import type { CaptureConfig } from "@/features/studio/engine/messages";
 
+export interface OpenedInput {
+  deviceId: string | null;
+  label: string | null;
+  /** Capture delay the browser reports for this input, in ms. */
+  latencyMs: number;
+}
+
 export class LocalInput {
   readonly tap: SignalTap;
   private readonly capture: AudioWorkletNode;
@@ -42,7 +49,7 @@ export class LocalInput {
   }
 
   /** Opens the device and wires it in. Replaces any input already open. */
-  async open(deviceId: string | null): Promise<{ deviceId: string | null; label: string | null }> {
+  async open(deviceId: string | null): Promise<OpenedInput> {
     const stream = await openInput(deviceId);
     this.close();
     this.stream = stream;
@@ -52,7 +59,11 @@ export class LocalInput {
     this.source.connect(this.tap.input);
     this.source.connect(this.monitor);
     const track = stream.getAudioTracks()[0];
-    return { deviceId: track?.getSettings().deviceId ?? deviceId, label: track?.label ?? null };
+    return {
+      deviceId: track?.getSettings().deviceId ?? deviceId,
+      label: track?.label ?? null,
+      latencyMs: this.latencyMs,
+    };
   }
 
   /** Called when the device disappears, for example when it is unplugged. */
