@@ -10,7 +10,7 @@ import { LandingHeader } from "@/features/landing/components/landing-header";
 import { LatencyStages } from "@/features/landing/components/latency-stages";
 
 const DESCRIPTION =
-  "A browser jamming studio. Raw interface audio, encoded with WebCodecs and sent as QUIC datagrams over WebTransport, with every millisecond of delay on the panel.";
+  "A browser jamming studio. Raw interface audio, encoded with WebCodecs and sent as datagrams straight between browsers, with every millisecond of delay on the panel.";
 
 export const metadata: Metadata = {
   title: { absolute: "ToneLink QUIC: play together, in time" },

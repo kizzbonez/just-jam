@@ -105,6 +105,13 @@ export function RemotePlay() {
         <Code>APP_URL</Code> to the public address. The relay can then be reached in two ways, and
         you can offer both.
       </P>
+      <Callout title="Linked players skip the relay">
+        Browsers that can reach each other send audio straight to each other with WebRTC,
+        whichever route they use to reach the relay. The relay only has to be reachable so that
+        players can be seated and introduced, and the fallback route is enough for that. The
+        routes below set the delay for players who cannot link. <Code>P2P_MODE=off</Code> keeps
+        all audio on the relay.
+      </Callout>
       <Spec head={["Route", "Carried by", "What you get"]} rows={ROUTES} />
       <List
         items={[

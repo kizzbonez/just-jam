@@ -5,7 +5,7 @@ const ROWS = [
   { stage: "Capture", call: "Echo cancelling, noise gate, automatic gain", ours: "All three off. The interface as it is" },
   { stage: "Framing", call: "20 ms packets", ours: "2.5, 5, 10 or 20 ms. You choose" },
   { stage: "Codec", call: "Opus tuned for voice", ours: "Opus in low-delay mode, or uncompressed PCM" },
-  { stage: "Transport", call: "Retransmission, pacing, reordering", ours: "One QUIC datagram per frame, never resent" },
+  { stage: "Transport", call: "Retransmission, pacing, reordering", ours: "One datagram per frame, never resent, browser to browser" },
   { stage: "Buffer", call: "Hidden and cautious, 60 ms and up", ours: "Yours: adaptive or fixed, on a live trace" },
 ] as const;
 

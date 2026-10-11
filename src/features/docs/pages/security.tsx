@@ -106,6 +106,14 @@ export function Security() {
           room. The relay stamps every audio packet with the sender&apos;s seat itself, so a player
           cannot send audio as somebody else.
         </P>
+        <Callout title="Linked players can see each other's network address">
+          A link between two browsers is a direct, encrypted connection, so each of the two learns
+          the other&apos;s public IP address, as in any peer-to-peer call. Each browser also asks a
+          STUN server for its own address, by default ones run by Google and Cloudflare. Whoever
+          runs the studio can set <Code>P2P_MODE=off</Code> to keep all audio on the relay, or
+          choose other servers with <Code>P2P_STUN_URLS</Code>. Adding <Code>?p2p=off</Code> to a
+          room&apos;s address keeps one browser off links.
+        </Callout>
       </Section>
       <LostAuthenticator />
     </>

@@ -26,7 +26,7 @@ const OPTIONS: SpecRow[] = [
   {
     name: "Players",
     value: "2 to 8",
-    note: "Every player sends to every other player through the relay, so bandwidth grows with the size of the room.",
+    note: "Every player sends to every other player, directly or through the relay, so bandwidth grows with the size of the room.",
   },
 ];
 

@@ -6,6 +6,35 @@ All notable changes to ToneLink QUIC are recorded here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0-beta.1] - 2026-10-11
+
+On the `feat/webrtc-direct` branch, for trial before it is merged.
+
+### Added
+
+- Links between players' browsers. Each pair of browsers in a room negotiates a
+  WebRTC data channel through the relay and sends audio straight across it, so
+  the relay's distance no longer adds to their delay. The relay still seats
+  players, carries room controls and forwards audio for any pair that cannot link.
+- A `P2P` or `Relay` badge on every mixer strip, a count of linked players in the
+  console header, and latency estimates that use the link's own round trip.
+- `P2P_MODE` (`on` or `off`) and `P2P_STUN_URLS`, and `?p2p=off` on a room address
+  to keep one browser on the relay.
+- `npm run e2e:p2p`: three real browsers covering linked, mixed and unlinked rooms.
+
+### Changed
+
+- The relay forwards negotiation messages between players and skips recipients a
+  sender already reaches directly. Its control line limit is now 8 KiB and its
+  control rate limit 60 messages a second.
+- `npm run e2e` runs the relay-only suite and then the link suite.
+
+### Security
+
+- A link is a direct connection, so each of the two players learns the other's
+  public address, and each browser asks a STUN server (Google and Cloudflare by
+  default) for its own. `P2P_MODE=off` turns links off.
+
 ## [1.1.1] - 2026-10-11
 
 ### Changed
@@ -206,7 +235,8 @@ system. No audio yet.
 - Lint-enforced size budgets: 200 lines per file, 40 lines per function
   (60 for components), complexity 10.
 
-[Unreleased]: https://github.com/kizzbonez/tonelink/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/kizzbonez/tonelink/compare/v1.2.0-beta.1...HEAD
+[1.2.0-beta.1]: https://github.com/kizzbonez/tonelink/compare/v1.1.1...v1.2.0-beta.1
 [1.1.1]: https://github.com/kizzbonez/tonelink/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/kizzbonez/tonelink/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/kizzbonez/tonelink/compare/v0.4.0...v1.0.0

@@ -14,7 +14,7 @@ const STAGES: Stage[] = [
   { name: "Interface", where: "Your hardware", detail: "48 kHz, no echo cancel, no gain control" },
   { name: "Capture", where: "AudioWorklet", detail: "Routes channels, cuts 2.5 to 20 ms frames" },
   { name: "Encode", where: "Worker · WebCodecs", detail: "Opus low-delay or raw PCM" },
-  { name: "Relay", where: "QUIC datagrams", detail: "Forwarded, never decoded", network: true },
+  { name: "Network", where: "Link or relay", detail: "Browser to browser when linked", network: true },
   { name: "Decode", where: "Worker · WebCodecs", detail: "Orders packets, measures arrival" },
   { name: "Jitter buffer", where: "AudioWorklet", detail: "Adaptive, drift corrected" },
   { name: "Mixer", where: "Web Audio", detail: "Your volume, pan and mute" },

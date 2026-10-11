@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 1.1.1" src="https://img.shields.io/badge/version-1.1.1-dc2626?style=flat-square">
+  <img alt="Version 1.2.0-beta.1" src="https://img.shields.io/badge/version-1.2.0--beta.1-dc2626?style=flat-square">
   <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-09090b?style=flat-square&logo=nextdotjs">
   <img alt="Go relay" src="https://img.shields.io/badge/relay-Go%20%2B%20quic--go-09090b?style=flat-square&logo=go">
   <img alt="Docker Compose" src="https://img.shields.io/badge/runs%20in-Docker%20Compose-09090b?style=flat-square&logo=docker">
@@ -25,15 +25,16 @@ the volume and hides network trouble by holding audio back, often 60 to 150 ms
 of it. Every one of those steps is wrong for an instrument, and that much delay
 makes playing in time impossible.
 
-ToneLink QUIC does not use WebRTC at all. It builds its own audio path from four
-browser features and keeps each stage small and visible.
+ToneLink QUIC does not use WebRTC's audio at all. It builds its own audio path from
+browser features and keeps each stage small and visible. WebRTC appears only as a
+pipe: a data channel that carries the same packets straight between two browsers.
 
 | | A video call (WebRTC) | ToneLink QUIC |
 |---|---|---|
 | Capture | Echo cancel, noise gate, auto gain | All three off: the interface as it is |
 | Framing | 20 ms packets | 2.5, 5, 10 or 20 ms, your choice |
 | Codec | Opus tuned for voice | Opus in low-delay mode, or uncompressed PCM |
-| Transport | RTP with retransmission and pacing | One QUIC datagram per frame, never retransmitted |
+| Transport | RTP with retransmission and pacing | One datagram per frame, never retransmitted: browser to browser, or over QUIC to the relay |
 | Jitter buffer | Hidden, conservative (NetEQ) | Yours: adaptive or fixed, shown on a live trace |
 | Where it runs | Inside the browser's media stack | AudioWorklets and a worker you can read |
 
@@ -97,14 +98,20 @@ flowchart LR
     IN["Audio interface<br>48 kHz, no AEC / NS / AGC"] --> CAP["Capture<br>AudioWorklet"]
     CAP -- "frames" --> ENC["Encode<br>Worker, WebCodecs"]
   end
-  ENC == "QUIC datagrams<br>WebTransport, HTTP/3" ==> RELAY["Relay<br>Go, quic-go"]
   subgraph B["Player B's browser"]
     direction LR
     DEC["Decode<br>Worker, WebCodecs"] -- "PCM" --> JB["Jitter buffer<br>AudioWorklet"]
     JB --> MIX["Mixer<br>gain, pan"] --> OUT["Headphones"]
   end
-  RELAY == "forwarded,<br>never decoded" ==> DEC
+  ENC == "link between the browsers<br>WebRTC data channel" ==> DEC
+  ENC -. "no link: QUIC datagrams<br>WebTransport, HTTP/3" .-> RELAY["Relay<br>Go, quic-go"]
+  RELAY -. "forwarded,<br>never decoded" .-> DEC
 ```
+
+Each pair of browsers tries to link as soon as they share a room. Linked players
+exchange audio directly and the relay carries none of it. A pair that cannot link,
+because of a strict firewall or a mobile network, uses the relay instead, and both
+kinds can share a room.
 
 Three threads share the work in each browser, joined by message ports. The page's
 main thread draws the interface and is never in the audio path, so a re-render
@@ -113,9 +120,9 @@ cannot cause a glitch.
 | Piece | Where | What it does |
 |---|---|---|
 | Capture worklet | Audio thread | Routes the two inputs, cuts frames, hands each to the worker |
-| Transport worker | Worker | WebTransport session, encoder, one decoder and estimator per remote player |
+| Transport worker | Worker | Relay session, links to other players, encoder, one decoder and estimator per remote player |
 | Playback worklet | Audio thread, one per player | The jitter buffer: target fill, drift correction, concealment |
-| Relay | Go container | Admits ticket holders, stamps the sender on each packet, fans out. Speaks WebTransport and a WebSocket fallback |
+| Relay | Go container | Admits ticket holders, introduces browsers to each other, and forwards audio for players with no link, stamping the sender on each packet. Speaks WebTransport and a WebSocket fallback |
 | Web app | Next.js container | Accounts, rooms, and the signed tickets the relay trusts |
 
 A room ticket is a 60-second signed token. The web app issues one only after
@@ -159,6 +166,11 @@ Each browser tries the direct route first and falls back to WebSocket if it does
 not answer within three seconds. Players on different routes can share a room,
 and a badge beside the room name shows which one you are on.
 
+Browsers that can reach each other also link up directly and send audio straight
+across, whichever route they use to reach the relay. For those players the relay's
+delay stops mattering: it only seats them and introduces them. Each mixer strip
+shows `P2P` or `Relay`.
+
 > [!IMPORTANT]
 > The two routes are not equal. QUIC datagrams go straight to the relay and are
 > never retransmitted. The fallback is TCP and takes whatever detour the tunnel
@@ -193,6 +205,8 @@ Settings live in `.env`, created by `npm run env:init` and never overwritten.
 | `RELAY_BIND` | `127.0.0.1` | Address the relay's UDP port is bound to |
 | `RELAY_WS_URL` | empty | Public `wss://` address of the WebSocket fallback. Empty turns it off |
 | `RELAY_WS_PORT` | `4434` | Host port of the fallback, bound to `127.0.0.1` |
+| `P2P_MODE` | `on` | Links between players' browsers. `off` keeps all audio on the relay |
+| `P2P_STUN_URLS` | Google, Cloudflare | STUN servers a browser asks for its own public address. `none` uses no server |
 | `WEB_PORT` / `RELAY_PORT` | `3410` / `4433` | Host ports |
 | `AUTH_SECRET` | generated | Signs sessions, encrypts authenticator secrets |
 | `RELAY_SHARED_SECRET` | generated | Signs room tickets; shared by web and relay |
@@ -222,12 +236,17 @@ Pitch is read to the nearest analyser bin, 47 Hz wide. The run also switches
 codec, pins the buffer, mutes and removes a player through the console, checking
 the audio after each step.
 
+A second suite, `e2e/p2p.mjs`, runs three browsers and checks the links between
+them: that linked players' audio skips the relay, that one room can mix linked and
+unlinked players, and that a pair with no link falls back to the relay with the
+sound intact.
+
 | Command | What it runs |
 |---|---|
 | `npm run check` | ESLint with size budgets, TypeScript, and the unit tests |
 | `npm test` | Unit tests: wire format, PCM, jitter buffer, tuner, auth, schemas |
 | `docker compose build relay` | Builds the relay and runs `go vet` and `go test` |
-| `npm run e2e` | Two browsers, real audio, through the Docker stack, including a room with one player on each route |
+| `npm run e2e` | Real browsers with real audio through the Docker stack: a relay-only run, then links between browsers in linked, mixed and unlinked rooms |
 | `node e2e/ws-probe.mjs` | Connects through the public fallback address and prints its round trip |
 | `npm run shots` | Regenerates every screenshot in this README and the guide |
 
@@ -246,6 +265,9 @@ the audio after each step.
   five failures, rate limits and a signed-in devices list.
 - State-changing requests must carry a trusted `Origin`. A content security policy
   is set on every response.
+- Links between browsers are encrypted, and are set up through the relay, which only
+  ticket holders reach. A link shows each of the two players the other's public
+  address. `P2P_MODE=off` keeps all audio on the relay.
 - Containers run read-only as non-root with all capabilities dropped. The database
   is on an internal network and publishes no port.
 - `security/secsuite/targets.yml` defines the scan targets for the source tree,
@@ -279,8 +301,10 @@ are lint errors, not guidelines.
 
 - Chrome and Edge on desktop are the tested browsers. The engine needs
   WebTransport, WebCodecs audio and AudioWorklet.
-- Every player sends to every other player through the relay, so bandwidth grows
-  with the room. Rooms are capped at 8.
+- Every player sends to every other player, over a link or through the relay, so
+  upload bandwidth grows with the room. Rooms are capped at 8.
+- A link needs both browsers to get through their routers. Where that fails, as on
+  mobile data and strict firewalls, the pair uses the relay. There is no TURN server.
 - Lost packets are concealed, not recovered. There is no forward error correction.
 - The WebSocket fallback is TCP. It keeps players connected where UDP is blocked,
   with more delay and less steady timing than the direct route.

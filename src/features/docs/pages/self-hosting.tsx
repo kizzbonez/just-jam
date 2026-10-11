@@ -49,6 +49,8 @@ const VARIABLES: SpecRow[] = [
   { name: "RELAY_BIND", value: "127.0.0.1", note: "Address the relay's UDP port is bound to. Set 0.0.0.0 to let other machines reach it." },
   { name: "RELAY_WS_URL", value: "empty", note: "Public wss:// address of the WebSocket fallback. Empty turns the fallback off." },
   { name: "RELAY_WS_PORT", value: "4434", note: "Host port of the fallback, always bound to 127.0.0.1. Point a tunnel or proxy at it." },
+  { name: "P2P_MODE", value: "on", note: "Links between players' browsers. With on, browsers that can reach each other send audio straight to each other. off keeps all audio on the relay." },
+  { name: "P2P_STUN_URLS", value: "Google, Cloudflare", note: "STUN servers a browser asks for its own public address, comma separated. none uses no server, which limits links to players on one network." },
 ];
 
 const OPERATIONS: ReactNode[] = [

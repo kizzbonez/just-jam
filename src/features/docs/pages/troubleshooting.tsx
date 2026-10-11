@@ -55,7 +55,12 @@ const TRANSPORT_ROWS: SpecRow[] = [
   {
     name: "Relay RTT in the hundreds",
     value: "A long detour",
-    note: "On the fallback, the round trip is the trip to the tunnel provider's data centre and back. Use the direct route to play in time.",
+    note: "On the fallback, the round trip is the trip to the tunnel provider's data centre and back. It only slows players whose strip reads Relay; linked players bypass it.",
+  },
+  {
+    name: "A strip reads Relay",
+    value: "No link to that player",
+    note: "Your two browsers could not reach each other directly, which is common on mobile data, strict firewalls and some VPNs. Their audio goes through the relay instead, with the relay's delay.",
   },
 ];
 

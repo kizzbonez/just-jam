@@ -17,7 +17,7 @@ export function Hero() {
         </h1>
         <p className="max-w-xl text-lg leading-relaxed text-ink-soft">
           ToneLink sends the sound of your audio interface straight to your band: no echo
-          cancelling, no noise gate, no hidden buffer. Short frames, one QUIC datagram each, and
+          cancelling, no noise gate, no hidden buffer. Short frames, one datagram each, browser to browser, and
           every millisecond of delay shown on the panel.
         </p>
         <div className="flex flex-wrap gap-3">

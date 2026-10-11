@@ -14,7 +14,7 @@ import {
 const STAGES: SpecRow[] = [
   { name: "Capture", value: "3 to 10 ms", note: "The other player's interface and driver. Reported by their browser." },
   { name: "Framing", value: "1.25 to 12.5 ms", note: "Half a frame on average, plus 2.5 ms of lookahead for Opus. You choose the frame size." },
-  { name: "Network", value: "distance", note: "Half of each player's round trip to the relay. Physics and routing, and much longer on the WebSocket fallback than on the direct QUIC route." },
+  { name: "Network", value: "distance", note: "Over a link between two browsers, half that pair's round trip. Through the relay, half of each player's round trip to it, which is much longer on the WebSocket fallback." },
   { name: "Buffer", value: "5 to 40 ms", note: "Audio held to absorb uneven arrival. Tuned automatically, or fixed by you." },
   { name: "Output", value: "3 to 40 ms", note: "Your own playback device and driver. Reported by your browser." },
 ];
@@ -52,14 +52,25 @@ const BUFFER_BEHAVIOUR: ReactNode[] = [
   </>,
 ];
 
+const LINK_FACTS: ReactNode[] = [
+  <>
+    <Strong>P2P</Strong> on a mixer strip means that player&apos;s audio travels straight between
+    your two browsers. <Strong>Relay</Strong> means it goes through the relay.
+  </>,
+  "Every pair of players is linked separately, so one room can hold both kinds.",
+  "A link is tried as soon as a player joins and usually comes up within a second or two. Until then, and whenever a link drops, the relay carries the audio.",
+  "Some networks refuse links: mobile data, strict office firewalls and some VPNs. Those players stay on the relay and everything else works as before.",
+];
+
 const TIPS: ReactNode[] = [
   "Use a wired connection. A steadier link lets the buffer shrink, usually the biggest single win.",
   "Close other programs that use the network or the audio device.",
   "Try a shorter frame. Going from 10 ms to 2.5 ms removes about 4 ms of framing delay.",
   "Check Lateness p99. If it is high while Relay RTT is low, the unevenness is on a computer, not the network.",
   "Check Packet loss. Persistent loss means the link cannot carry the bitrate: lower it, or leave PCM for Opus.",
-  "Run the relay close to the players. Network delay is distance, and nothing in software removes it.",
-  "Check the badge beside the room name. WebSocket means the fallback is in use; the direct QUIC route is the one built for playing in time.",
+  "Look for P2P on each strip. A player on Relay is taking the long way round.",
+  "For players who cannot link, run the relay close to them. Network delay is distance, and nothing in software removes it.",
+  "Check the badge beside the room name. WebSocket means your route to the relay is the fallback, which only slows the players you are not linked to.",
 ];
 
 function Sum() {
@@ -80,9 +91,28 @@ function Sum() {
   );
 }
 
+function Links() {
+  return (
+    <Section id="links" n="02" title="Links between browsers">
+      <P>
+        Audio that goes through the relay travels to wherever the relay is and back out again.
+        When two browsers can reach each other, ToneLink links them with WebRTC and sends the audio
+        straight across. That is the shortest path the internet offers: two players in one
+        building are about a millisecond apart, however far away the relay is.
+      </P>
+      <List items={LINK_FACTS} />
+      <P>
+        The console header counts the players you are linked to, and each strip&apos;s latency
+        figure already uses the right path. The relay still seats players, carries the room&apos;s
+        controls and introduces browsers to each other, so it has to stay reachable.
+      </P>
+    </Section>
+  );
+}
+
 function Transport() {
   return (
-    <Section id="transport" n="02" title="Codec and frame size">
+    <Section id="transport" n="03" title="Codec and frame size">
       <Figure
         shot="transport"
         alt="The Transport and Jitter buffer racks"
@@ -101,7 +131,7 @@ function Transport() {
 
 function Buffer() {
   return (
-    <Section id="buffer" n="03" title="The jitter buffer">
+    <Section id="buffer" n="04" title="The jitter buffer">
       <P>
         Packets leave at perfectly even intervals and arrive unevenly. The buffer holds a little
         audio so that a late packet is still in time. Too small and you hear dropouts; too large
@@ -138,9 +168,10 @@ export function Latency() {
         caption="Telemetry for one remote player. The trace shows buffer held, its target and packet lateness."
       />
       <Sum />
+      <Links />
       <Transport />
       <Buffer />
-      <Section id="lower" n="04" title="Getting it lower">
+      <Section id="lower" n="05" title="Getting it lower">
         <List items={TIPS} />
       </Section>
     </>
