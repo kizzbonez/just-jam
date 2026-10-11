@@ -36,6 +36,7 @@ describe("estimateLatency", () => {
     receiverRttMs: 12,
     bufferMs: 14,
     outputMs: 20,
+    p2pRttMs: null,
   } as const;
 
   it("adds up capture, framing, network, buffer and output", () => {
@@ -43,6 +44,12 @@ describe("estimateLatency", () => {
     expect(latency.framingMs).toBe(5); // half a frame plus 2.5 ms of Opus lookahead
     expect(latency.networkMs).toBe(10); // half of each round trip
     expect(latency.totalMs).toBe(10 + 5 + 10 + 14 + 20);
+  });
+
+  it("counts only the trip between the two browsers when they are linked", () => {
+    const latency = estimateLatency({ ...parts, p2pRttMs: 6 });
+    expect(latency.networkMs).toBe(3);
+    expect(latency.totalMs).toBe(10 + 5 + 3 + 14 + 20);
   });
 
   it("charges no lookahead for PCM", () => {
@@ -92,6 +99,8 @@ function stat(slot: number, bufferMs: number, underruns: number): PeerStats {
     receivedKbps: 0,
     playing: true,
     rate: 1,
+    route: "relay",
+    p2pRttMs: null,
   };
 }
 

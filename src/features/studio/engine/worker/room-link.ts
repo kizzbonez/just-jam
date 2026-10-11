@@ -1,20 +1,23 @@
 /**
  * Everything the worker does while connected to a room: owns the relay
- * session, the sender, one receiver per remote player and the stats loop.
+ * session, the sender, the audio paths to the other players and the stats loop.
  */
 import { RELAY_CLOSE } from "@/features/rooms/constants";
 import type {
   BufferSetting,
   CaptureFrame,
   LocalState,
+  P2pSignal,
   PeerInfo,
   PublishedState,
   TransportProfile,
   WorkerEvent,
 } from "@/features/studio/engine/messages";
-import { decodeAudio, TYPE_AUDIO } from "@/features/studio/engine/wire";
+import { parseSignal } from "@/features/studio/engine/p2p-signal";
+import { TYPE_AUDIO } from "@/features/studio/engine/wire";
+import { Pacer } from "@/features/studio/engine/worker/pacer";
+import { PeerAudio } from "@/features/studio/engine/worker/peer-audio";
 import { Pinger } from "@/features/studio/engine/worker/pinger";
-import { Receiver } from "@/features/studio/engine/worker/receiver";
 import {
   openRelay,
   type RelayLink,
@@ -31,7 +34,8 @@ export class RoomLink {
   private session: RelayLink | null = null;
   private readonly sender: Sender;
   private readonly pinger = new Pinger();
-  private readonly receivers = new Map<number, Receiver>();
+  private readonly audio: PeerAudio;
+  private readonly signals = new Pacer<object>((message) => this.session?.sendControl(message));
   private capturePort: MessagePort | null = null;
   private profile: TransportProfile | null = null;
   private local: LocalState = { armed: false, muted: false, inputLatencyMs: 0 };
@@ -39,6 +43,7 @@ export class RoomLink {
   private lastStatsAt = 0;
   private lastPublishAt = 0;
   private lastBytes = 0;
+  private relayed = 0;
   /**
    * Set when the relay announces on the control stream why it is about to end
    * the session. That notice is reliable; the close code that follows is not
@@ -47,10 +52,18 @@ export class RoomLink {
   private announcedClose: number | null = null;
 
   constructor(private readonly emit: Emit) {
+    this.audio = new PeerAudio((slots) => this.session?.sendControl({ t: "p2p", slots }));
     this.sender = new Sender(
-      (datagram) => this.session?.sendDatagram(datagram),
+      (datagram) => this.sendAudio(datagram),
       (message) => emit({ t: "error", message }),
     );
+  }
+
+  /** Linked players get the packet directly; the relay carries it to the rest. */
+  private sendAudio(datagram: Uint8Array): void {
+    if (!this.audio.send(datagram)) return;
+    this.session?.sendDatagram(datagram);
+    this.relayed++;
   }
 
   async connect(target: RelayTarget): Promise<void> {
@@ -87,7 +100,7 @@ export class RoomLink {
         this.emit({ t: "peer-joined", peer: message.peer as PeerInfo });
         break;
       case "peer-left":
-        this.dropReceiver(message.slot as number);
+        this.audio.dropPeer(message.slot as number);
         this.emit({ t: "peer-left", slot: message.slot as number, reason: String(message.reason) });
         break;
       case "peer-state":
@@ -96,6 +109,9 @@ export class RoomLink {
           slot: message.slot as number,
           state: message.state as PublishedState,
         });
+        break;
+      case "signal":
+        this.onSignal(message);
         break;
       case "kicked":
         this.announcedClose = RELAY_CLOSE.KICKED;
@@ -106,13 +122,15 @@ export class RoomLink {
     }
   }
 
+  /** Another player's link negotiation, which only the page can act on. */
+  private onSignal(message: Record<string, unknown>): void {
+    const signal = parseSignal(message.data);
+    if (signal) this.emit({ t: "signal", slot: message.slot as number, signal });
+  }
+
   private onDatagram(data: Uint8Array, arrivalMs: number): void {
-    if (data[0] !== TYPE_AUDIO) {
-      this.pinger.accept(data, arrivalMs);
-      return;
-    }
-    const packet = decodeAudio(data);
-    if (packet) this.receivers.get(packet.slot)?.push(packet, arrivalMs);
+    if (data[0] === TYPE_AUDIO) this.audio.fromRelay(data, arrivalMs);
+    else this.pinger.accept(data, arrivalMs);
   }
 
   private onClosed(code: number | null, reason: string): void {
@@ -131,13 +149,20 @@ export class RoomLink {
   }
 
   addPeer(slot: number, port: MessagePort): void {
-    this.dropReceiver(slot);
-    this.receivers.set(slot, new Receiver(slot, port, this.bufferSetting()));
+    this.audio.addPeer(slot, port);
   }
 
-  private dropReceiver(slot: number): void {
-    this.receivers.get(slot)?.dispose();
-    this.receivers.delete(slot);
+  addLink(slot: number, channel: RTCDataChannel): void {
+    this.audio.addLink(slot, channel);
+  }
+
+  removeLink(slot: number): void {
+    this.audio.removeLink(slot);
+  }
+
+  /** Passes our side of a link negotiation to one player, through the relay. */
+  signal(slot: number, signal: P2pSignal): void {
+    this.signals.push({ t: "signal", slot, data: signal });
   }
 
   private bufferSetting(): BufferSetting {
@@ -147,7 +172,7 @@ export class RoomLink {
   async setProfile(profile: TransportProfile): Promise<void> {
     const previous = this.profile;
     this.profile = profile;
-    for (const receiver of this.receivers.values()) receiver.setBuffer(this.bufferSetting());
+    this.audio.setBuffer(this.bufferSetting());
     const sameCodec =
       previous?.codec === profile.codec &&
       previous.frameMicros === profile.frameMicros &&
@@ -184,8 +209,9 @@ export class RoomLink {
     this.lastStatsAt = now;
     const sentKbps = ((this.sender.bytes - this.lastBytes) * 8) / 1000 / Math.max(elapsed, 0.001);
     this.lastBytes = this.sender.bytes;
-    const peers = [...this.receivers.values()].map((receiver) => receiver.tick(elapsed));
-    const link = { rttMs: this.pinger.rttMs, sentKbps, sentPackets: this.sender.packets };
+    const peers = this.audio.stats(elapsed, now);
+    const { packets } = this.sender;
+    const link = { rttMs: this.pinger.rttMs, sentKbps, sentPackets: packets, relayedPackets: this.relayed };
     this.emit({ t: "stats", link, peers });
     if (now - this.lastPublishAt > PUBLISH_INTERVAL_MS) this.publish();
   }
@@ -194,8 +220,9 @@ export class RoomLink {
     if (this.statsTimer !== null) clearInterval(this.statsTimer);
     this.statsTimer = null;
     this.pinger.stop();
+    this.signals.clear();
     this.sender.dispose();
-    for (const slot of [...this.receivers.keys()]) this.dropReceiver(slot);
+    this.audio.dispose();
     this.capturePort?.close();
   }
 

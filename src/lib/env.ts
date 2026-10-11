@@ -23,6 +23,19 @@ const EnvSchema = z.object({
       .refine((value) => /^wss?:\/\//.test(value), "must start with ws:// or wss://")
       .optional(),
   ),
+  /**
+   * Links between players' browsers over WebRTC. `off` keeps all audio on the
+   * relay, and keeps players' addresses from each other.
+   */
+  P2P_MODE: z.preprocess(blankToUndefined, z.enum(["on", "off"]).default("on")),
+  /**
+   * STUN servers a browser asks for its public address, comma separated.
+   * `none` uses no server, which limits links to players on one network.
+   */
+  P2P_STUN_URLS: z.preprocess(
+    blankToUndefined,
+    z.string().default("stun:stun.l.google.com:19302,stun:stun.cloudflare.com:3478"),
+  ),
   /** Relay admin API, reachable only on the internal network. */
   RELAY_ADMIN_URL: z.url().default("http://127.0.0.1:8081"),
   /** Shared with the relay: signs room tickets and guards its admin API. */

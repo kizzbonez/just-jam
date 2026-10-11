@@ -18,33 +18,31 @@ function fail(error: unknown): void {
   scope.postMessage({ t: "error", message });
 }
 
-function handle(command: WorkerCommand): void {
-  switch (command.t) {
-    case "connect":
-      link.connect(command).catch((error: unknown) => {
-        fail(error);
-        scope.postMessage({ t: "closed", code: null, reason: "Could not reach the audio relay." });
-      });
-      break;
-    case "capture-port":
-      link.setCapturePort(command.port);
-      break;
-    case "peer-port":
-      link.addPeer(command.slot, command.port);
-      break;
-    case "profile":
-      link.setProfile(command.profile).catch(fail);
-      break;
-    case "local":
-      link.setLocal(command.state);
-      break;
-    case "kick":
-      link.kick(command.slot);
-      break;
-    case "close":
-      link.close();
-      break;
-  }
-}
+type Handlers = {
+  [K in WorkerCommand["t"]]: (command: Extract<WorkerCommand, { t: K }>) => void;
+};
 
-scope.onmessage = (event) => handle(event.data);
+const handlers: Handlers = {
+  connect: (command) => {
+    link.connect(command).catch((error: unknown) => {
+      fail(error);
+      scope.postMessage({ t: "closed", code: null, reason: "Could not reach the audio relay." });
+    });
+  },
+  "capture-port": (command) => link.setCapturePort(command.port),
+  "peer-port": (command) => link.addPeer(command.slot, command.port),
+  profile: (command) => {
+    link.setProfile(command.profile).catch(fail);
+  },
+  local: (command) => link.setLocal(command.state),
+  kick: (command) => link.kick(command.slot),
+  "p2p-channel": (command) => link.addLink(command.slot, command.channel),
+  "p2p-close": (command) => link.removeLink(command.slot),
+  signal: (command) => link.signal(command.slot, command.signal),
+  close: () => link.close(),
+};
+
+scope.onmessage = (event) => {
+  const command = event.data;
+  (handlers[command.t] as (command: WorkerCommand) => void)(command);
+};

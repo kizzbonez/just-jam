@@ -34,7 +34,7 @@ export function missingFeatures(): string[] {
 }
 
 /** Checks the browser and the route to the relay. Throws with a message for the player. */
-function preflight(ticket: RoomTicket): { direct: boolean } {
+function preflight(ticket: RoomTicket): { direct: boolean; p2p: boolean } {
   const missing = missingFeatures();
   if (missing.length > 0) {
     throw new Error(`This browser lacks ${missing.join(", ")}. Use a current Chrome or Edge.`);
@@ -45,6 +45,7 @@ function preflight(ticket: RoomTicket): { direct: boolean } {
     pageHostname: window.location.hostname,
     search: window.location.search,
     hasWebTransport: "WebTransport" in window,
+    hasPeerConnection: "RTCPeerConnection" in window,
   });
   if (!plan.ok) throw new Error(plan.problem);
   return plan;
@@ -61,10 +62,10 @@ export function useStudioEngine(ticket: RoomTicket, profile: AudioProfile): Engi
     let cancelled = false;
     let engine: StudioEngine | null = null;
     const start = async () => {
-      const { direct } = preflight(ticket);
+      const route = preflight(ticket);
       engine = await StudioEngine.create(profile);
       if (cancelled) return engine.dispose();
-      engine.connect(ticket, direct);
+      engine.connect(ticket, route);
       exposeDiagnostics(engine);
       setHandle({ engine, startError: null });
     };

@@ -7,23 +7,29 @@ const local: TransportInputs = {
   pageHostname: "127.0.0.1",
   search: "",
   hasWebTransport: true,
+  hasPeerConnection: true,
 };
 
 const remote: TransportInputs = { ...local, pageHostname: "studio.example.com" };
 const fallback = "wss://relay.example.com";
 
 describe("planTransport", () => {
+  it("keeps audio on the relay when asked to, or when the browser has no WebRTC", () => {
+    expect(planTransport({ ...local, search: "?p2p=off" })).toMatchObject({ p2p: false });
+    expect(planTransport({ ...local, hasPeerConnection: false })).toMatchObject({ p2p: false });
+  });
+
   it("goes direct when the studio is used on its own machine", () => {
-    expect(planTransport(local)).toEqual({ ok: true, direct: true });
+    expect(planTransport(local)).toEqual({ ok: true, direct: true, p2p: true });
   });
 
   it("goes direct to a relay with a reachable address", () => {
     const plan = planTransport({ ...remote, relayUrl: "https://relay.example.com:4433" });
-    expect(plan).toEqual({ ok: true, direct: true });
+    expect(plan).toEqual({ ok: true, direct: true, p2p: true });
   });
 
   it("skips QUIC for a loopback relay seen from another device, when there is a fallback", () => {
-    expect(planTransport({ ...remote, relayWsUrl: fallback })).toEqual({ ok: true, direct: false });
+    expect(planTransport({ ...remote, relayWsUrl: fallback })).toEqual({ ok: true, direct: false, p2p: true });
   });
 
   it("explains a loopback relay when there is no fallback", () => {
@@ -34,7 +40,7 @@ describe("planTransport", () => {
 
   it("uses the fallback in a browser without WebTransport", () => {
     const plan = planTransport({ ...local, hasWebTransport: false, relayWsUrl: fallback });
-    expect(plan).toEqual({ ok: true, direct: false });
+    expect(plan).toEqual({ ok: true, direct: false, p2p: true });
   });
 
   it("says so when the browser lacks WebTransport and there is no fallback", () => {
@@ -44,7 +50,7 @@ describe("planTransport", () => {
 
   it("honours a forced fallback, and reports when none is configured", () => {
     const forced = { ...local, search: "?transport=websocket" };
-    expect(planTransport({ ...forced, relayWsUrl: fallback })).toEqual({ ok: true, direct: false });
+    expect(planTransport({ ...forced, relayWsUrl: fallback })).toEqual({ ok: true, direct: false, p2p: true });
     const plan = planTransport(forced);
     expect(plan.ok ? "" : plan.problem).toMatch(/no WebSocket fallback/);
   });

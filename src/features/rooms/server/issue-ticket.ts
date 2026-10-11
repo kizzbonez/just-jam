@@ -2,6 +2,7 @@ import "server-only";
 import bcrypt from "bcryptjs";
 import type { SessionUser } from "@/features/auth/server/current-user";
 import { TICKET_TTL_SECONDS } from "@/features/rooms/constants";
+import { p2pConfig, type P2pConfig } from "@/features/rooms/server/p2p-config";
 import { grantRoomPass, hasRoomPass } from "@/features/rooms/server/room-pass";
 import type { Room } from "@/generated/prisma/client";
 import { signToken } from "@/lib/crypto/tokens";
@@ -21,6 +22,8 @@ export interface RoomTicket {
   certHash: string | null;
   /** WebSocket fallback endpoint, or null when the studio has none. */
   relayWsUrl: string | null;
+  /** How browsers link to each other, or null when all audio stays on the relay. */
+  p2p: P2pConfig | null;
   isHost: boolean;
 }
 
@@ -90,6 +93,7 @@ export async function issueTicket(
     relayUrl: env().RELAY_PUBLIC_URL,
     certHash: cert.pinned ? cert.hash : null,
     relayWsUrl: env().RELAY_WS_URL?.replace(/\/$/, "") ?? null,
+    p2p: p2pConfig(),
     isHost,
   };
 }

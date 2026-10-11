@@ -14,6 +14,14 @@ import type {
 /** How the session reaches the relay: direct QUIC datagrams, or the WebSocket fallback. */
 export type TransportKind = "quic" | "websocket";
 
+/** How one player's audio travels: between the two browsers, or through the relay. */
+export type PeerRoute = "p2p" | "relay";
+
+/** WebRTC negotiation between two players, carried by the relay's control stream. */
+export type P2pSignal =
+  | { k: "offer" | "answer"; sdp: string }
+  | { k: "ice"; list: RTCIceCandidateInit[] };
+
 /** A participant as the relay announces them (relay/peer.go PeerInfo). */
 export interface PeerInfo {
   slot: number;
@@ -61,12 +69,17 @@ export type WorkerCommand =
   | { t: "profile"; profile: TransportProfile }
   | { t: "local"; state: LocalState }
   | { t: "kick"; slot: number }
+  | { t: "p2p-channel"; slot: number; channel: RTCDataChannel }
+  | { t: "p2p-close"; slot: number }
+  | { t: "signal"; slot: number; signal: P2pSignal }
   | { t: "close" };
 
 export interface LinkStats {
   rttMs: number | null;
   sentKbps: number;
   sentPackets: number;
+  /** Audio packets handed to the relay. It stops rising while every player is linked. */
+  relayedPackets: number;
 }
 
 export interface PeerStats {
@@ -84,6 +97,9 @@ export interface PeerStats {
   playing: boolean;
   /** Playout rate while drift is being corrected, 1 when on target. */
   rate: number;
+  route: PeerRoute;
+  /** Round trip over the link to this player, or null when the relay carries them. */
+  p2pRttMs: number | null;
 }
 
 export type WorkerEvent =
@@ -91,6 +107,7 @@ export type WorkerEvent =
   | { t: "peer-joined"; peer: PeerInfo }
   | { t: "peer-left"; slot: number; reason: string }
   | { t: "peer-state"; slot: number; state: PublishedState }
+  | { t: "signal"; slot: number; signal: P2pSignal }
   | { t: "closed"; code: number | null; reason: string }
   | { t: "stats"; link: LinkStats; peers: PeerStats[] }
   | { t: "error"; message: string };

@@ -18,6 +18,7 @@ export function peerLatency(
     codec: peer.state.codec,
     senderRttMs: peer.state.rttMs,
     receiverRttMs: state.link.rttMs ?? 0,
+    p2pRttMs: peer.stats.route === "p2p" ? peer.stats.p2pRttMs : null,
     bufferMs: peer.stats.bufferMs,
     outputMs: engine.outputLatencyMs,
   });

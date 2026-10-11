@@ -36,6 +36,9 @@ const IDLE_PLAYOUT: PlayoutStats = {
   rate: 1,
 };
 
+/** What a receiver knows on its own. The path the packets took is added above it. */
+export type ReceiverStats = Omit<PeerStats, "route" | "p2pRttMs">;
+
 interface Counters {
   received: number;
   lost: number;
@@ -96,6 +99,11 @@ export class Receiver {
     this.decoder.decode(packet, conceal);
   }
 
+  /** The packets now come by another path: treat the next one as a new stream. */
+  rebase(): void {
+    this.expected = null;
+  }
+
   /** A new stream, or a break in one: start timing and buffering from scratch. */
   private restart(packet: AudioPacket, frameMs: number): void {
     this.expected = packet.sequence;
@@ -124,7 +132,7 @@ export class Receiver {
   }
 
   /** Runs the buffer tuner and reports this player's telemetry. */
-  tick(elapsedSeconds: number): PeerStats {
+  tick(elapsedSeconds: number): ReceiverStats {
     const { underruns, fill, skips, playing, rate } = this.playout;
     const latenessMs = this.jitter.latenessQuantile(0.99);
     const targetMs = this.nextTarget(latenessMs, underruns - this.seenUnderruns, elapsedSeconds);

@@ -9,6 +9,8 @@ export interface LatencyParts {
   senderRttMs: number;
   /** Round trip from this browser to the relay. */
   receiverRttMs: number;
+  /** Round trip over the link between the two browsers, or null when the relay carries the audio. */
+  p2pRttMs: number | null;
   /** Audio waiting in this player's jitter buffer. */
   bufferMs: number;
   /** Output delay this browser reports for the playback device. */
@@ -35,7 +37,9 @@ const OPUS_LOOKAHEAD_MS = 2.5;
 export function estimateLatency(parts: LatencyParts): LatencyBreakdown {
   // A sample waits between zero and one frame for its frame to fill.
   const framingMs = parts.frameMs / 2 + (parts.codec === "OPUS" ? OPUS_LOOKAHEAD_MS : 0);
-  const networkMs = parts.senderRttMs / 2 + parts.receiverRttMs / 2;
+  // Through the relay the audio makes both players' trips; over a link, only the one between them.
+  const relayedMs = parts.senderRttMs / 2 + parts.receiverRttMs / 2;
+  const networkMs = parts.p2pRttMs === null ? relayedMs : parts.p2pRttMs / 2;
   const totalMs =
     parts.senderInputMs + framingMs + networkMs + parts.bufferMs + parts.outputMs;
   return {

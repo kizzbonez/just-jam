@@ -35,6 +35,7 @@ function Stat({ label, value, unit }: { label: string; value: string; unit: stri
 /** The master section: which room this is, link health and the way out. */
 export function ConsoleHeader({ door, state, onLeave }: ConsoleHeaderProps) {
   const [copied, setCopied] = useState(false);
+  const linked = state.peers.filter((peer) => peer.stats?.route === "p2p").length;
 
   async function copyLink() {
     await navigator.clipboard.writeText(`${window.location.origin}/room/${door.slug}`);
@@ -68,6 +69,7 @@ export function ConsoleHeader({ door, state, onLeave }: ConsoleHeaderProps) {
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <Stat label="Linked" value={`${linked}/${state.peers.length}`} unit="p2p" />
         <Stat label="Relay RTT" value={formatMs(state.link.rttMs)} unit="ms" />
         <Stat label="Sending" value={state.link.sentKbps.toFixed(0)} unit="kbps" />
         <div className="flex items-center gap-2">

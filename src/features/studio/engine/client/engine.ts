@@ -8,7 +8,7 @@ import { SAMPLE_RATE, type AudioProfile } from "@/features/studio/audio-profile"
 import { describeInputError } from "@/features/studio/engine/client/capture";
 import { describeClose } from "@/features/studio/engine/client/close-reasons";
 import { LocalInput } from "@/features/studio/engine/client/local-input";
-import { PeerChannel } from "@/features/studio/engine/client/peer-channel";
+import { PeerRack } from "@/features/studio/engine/client/peer-rack";
 import { RoomStore, type PeerMix } from "@/features/studio/engine/client/room-store";
 import type { SignalTap } from "@/features/studio/engine/client/signal-tap";
 import { TelemetryHistory } from "@/features/studio/engine/client/telemetry-history";
@@ -29,7 +29,9 @@ export class StudioEngine {
   readonly store: RoomStore;
   /** A minute of buffer telemetry per player, for the trace scope. */
   readonly history = new TelemetryHistory();
-  private readonly channels = new Map<number, PeerChannel>();
+  private readonly rack: PeerRack;
+  /** For linking to the other players' browsers. Null keeps audio on the relay. */
+  private iceServers: RTCIceServer[] | null = null;
   private disposed = false;
   /** Relay close code of the ended session, for deciding whether to offer a rejoin. */
   closeCode: number | null = null;
@@ -44,6 +46,7 @@ export class StudioEngine {
     this.worker = worker;
     this.input = parts.input;
     this.store = new RoomStore(profile);
+    this.rack = new PeerRack(parts.context, (item, transfer) => this.command(item, transfer));
     worker.onmessage = (event: MessageEvent<WorkerEvent>) => this.onEvent(event.data);
     // The worker script failed to load or crashed: the session cannot continue.
     worker.onerror = () =>
@@ -76,12 +79,16 @@ export class StudioEngine {
     this.worker.postMessage(command, transfer);
   }
 
-  /** `direct` is false when the relay's QUIC address cannot work from this device. */
-  connect(ticket: RoomTicket, direct: boolean): void {
+  /**
+   * `direct` is false when the relay's QUIC address cannot work from this
+   * device. `p2p` is false when this browser should not link to the others.
+   */
+  connect(ticket: RoomTicket, route: { direct: boolean; p2p: boolean }): void {
+    this.iceServers = route.p2p ? (ticket.p2p?.iceServers ?? null) : null;
     this.command({ t: "profile", profile: this.store.getState().profile });
     this.command({
       t: "connect",
-      url: direct ? ticket.relayUrl : null,
+      url: route.direct ? ticket.relayUrl : null,
       certHash: ticket.certHash,
       wsUrl: ticket.relayWsUrl,
       ticket: ticket.ticket,
@@ -97,6 +104,7 @@ export class StudioEngine {
           maxDatagram: event.maxDatagram,
           transport: event.transport,
         });
+        this.rack.startLinks(event.slot, this.iceServers);
         event.peers.forEach((peer) => this.addPeer(peer));
         this.publishLocal();
         break;
@@ -108,6 +116,9 @@ export class StudioEngine {
         break;
       case "peer-state":
         this.store.setPeerState(event.slot, event.state);
+        break;
+      case "signal":
+        this.rack.signal(event.slot, event.signal);
         break;
       case "stats":
         this.history.push(event.peers);
@@ -125,15 +136,12 @@ export class StudioEngine {
 
   private addPeer(info: PeerInfo): void {
     this.removePeer(info.slot);
-    const link = new MessageChannel();
-    this.channels.set(info.slot, new PeerChannel(this.context, link.port1));
-    this.command({ t: "peer-port", slot: info.slot, port: link.port2 }, [link.port2]);
+    this.rack.add(info.slot);
     this.store.upsertPeer(info);
   }
 
   private removePeer(slot: number): void {
-    this.channels.get(slot)?.dispose();
-    this.channels.delete(slot);
+    this.rack.remove(slot);
     this.history.drop(slot);
     this.store.removePeer(slot);
   }
@@ -145,7 +153,7 @@ export class StudioEngine {
 
   /** Measuring point after a player's fader and pan. */
   peerTap(slot: number): SignalTap | null {
-    return this.channels.get(slot)?.tap ?? null;
+    return this.rack.get(slot)?.tap ?? null;
   }
 
   /** Output delay the browser reports for this device, in ms. */
@@ -204,7 +212,7 @@ export class StudioEngine {
     const peer = this.store.getState().peers.find((item) => item.slot === slot);
     if (!peer) return;
     const mix = { ...peer.mix, ...patch };
-    this.channels.get(slot)?.applyMix(mix);
+    this.rack.get(slot)?.applyMix(mix);
     this.store.patchPeer(slot, { mix });
   }
 
@@ -226,9 +234,9 @@ export class StudioEngine {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.rack.dispose();
     this.command({ t: "close" });
     this.input.close();
-    for (const slot of [...this.channels.keys()]) this.removePeer(slot);
     // Give the worker a moment to close the session cleanly before it is stopped.
     setTimeout(() => this.worker.terminate(), 250);
     void this.context.close();

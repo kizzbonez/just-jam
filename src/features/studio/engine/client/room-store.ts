@@ -74,7 +74,7 @@ export class RoomStore {
         error: null,
         busy: false,
       },
-      link: { rttMs: null, sentKbps: 0, sentPackets: 0 },
+      link: { rttMs: null, sentKbps: 0, sentPackets: 0, relayedPackets: 0 },
       profile,
       maxDatagram: 0,
       transport: null,

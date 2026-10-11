@@ -53,6 +53,8 @@ services:
       SETUP_TOKEN: ${SETUP_TOKEN:-}
       RELAY_PUBLIC_URL: ${RELAY_PUBLIC_URL:-https://127.0.0.1:4433}
       RELAY_WS_URL: ${RELAY_WS_URL:-}
+      P2P_MODE: ${P2P_MODE:-on}
+      P2P_STUN_URLS: ${P2P_STUN_URLS:-}
       RELAY_ADMIN_URL: http://relay:8081
       RELAY_SHARED_SECRET: ${RELAY_SHARED_SECRET:?Run `npm run env:init` to create .env}
     ports:

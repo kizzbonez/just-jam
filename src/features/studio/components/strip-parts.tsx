@@ -11,10 +11,16 @@ import { Led } from "@/ui/primitives/led";
 const avatarOf = (peer: PeerView) =>
   peer.ava > 0 ? `/api/users/${peer.userId}/avatar?v=${peer.ava}` : null;
 
-/** Who is on this strip, and whether they are sending right now. */
+const ROUTE_HINT = {
+  p2p: "Audio travels straight between your browser and theirs.",
+  relay: "Audio travels through the relay, because no link between your browsers is up.",
+} as const;
+
+/** Who is on this strip, how their audio reaches you, and whether they are sending right now. */
 export function StripHeader({ peer }: { peer: PeerView }) {
   const sending = Boolean(peer.state?.armed && !peer.state.muted);
   const status = sending ? "Sending audio" : "Not sending";
+  const route = peer.stats?.route;
   return (
     <header className="flex flex-col items-center gap-2 text-center">
       <div className="flex w-full items-center justify-between">
@@ -31,6 +37,11 @@ export function StripHeader({ peer }: { peer: PeerView }) {
       <div className="flex flex-wrap justify-center gap-1">
         <Badge>{peer.inst}</Badge>
         {peer.host && <Badge tone="steel">Host</Badge>}
+        {route && (
+          <Badge tone={route === "p2p" ? "wine" : "steel"} className="cursor-help">
+            <span title={ROUTE_HINT[route]}>{route === "p2p" ? "P2P" : "Relay"}</span>
+          </Badge>
+        )}
       </div>
     </header>
   );
