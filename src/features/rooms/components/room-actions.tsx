@@ -1,12 +1,12 @@
 "use client";
 
 import { Check, Link2, LogIn, Power } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api-client";
 import { useApiAction } from "@/lib/use-api-action";
 import { Button } from "@/ui/primitives/button";
+import { KeyLink } from "@/ui/primitives/key-link";
 
 export interface RoomActionsProps {
   slug: string;
@@ -57,12 +57,14 @@ export function RoomActions({ slug, name, isHost }: RoomActionsProps) {
           <span className="hidden md:inline">Close</span>
         </Button>
       )}
-      <Link
+      <KeyLink
         href={`/room/${slug}`}
-        className="inline-flex h-8 items-center gap-1.5 rounded-[3px] border border-crimson-500/70 bg-linear-to-b from-crimson-500 to-crimson-700 px-3 font-display text-[0.8125rem] font-semibold tracking-[0.09em] text-white uppercase shadow-key transition-shadow hover:shadow-glow"
+        variant="fire"
+        size="sm"
+        icon={<LogIn aria-hidden className="size-4" />}
       >
-        <LogIn aria-hidden className="size-4" /> Enter
-      </Link>
+        Enter
+      </KeyLink>
     </div>
   );
 }

@@ -20,6 +20,17 @@ const SIZES: Record<Size, string> = {
   lg: "h-12 gap-2.5 px-6 text-base",
 };
 
+const BASE =
+  "inline-flex shrink-0 items-center justify-center rounded-[3px] border font-display font-semibold tracking-[0.09em] uppercase transition-[box-shadow,border-color,background-color,color,transform] duration-150 active:translate-y-px disabled:pointer-events-none disabled:opacity-45";
+
+/** The key-cap classes, shared with links that should look like keys. */
+export function keyClass(variant: Variant = "steel", size: Size = "md"): string {
+  return cn(BASE, VARIANTS[variant], SIZES[size]);
+}
+
+export type KeyVariant = Variant;
+export type KeySize = Size;
+
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
@@ -43,12 +54,7 @@ export function Button({
     <button
       type={type}
       disabled={disabled || loading}
-      className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-[3px] border font-display font-semibold tracking-[0.09em] uppercase transition-[box-shadow,border-color,background-color,color,transform] duration-150 active:translate-y-px disabled:pointer-events-none disabled:opacity-45",
-        VARIANTS[variant],
-        SIZES[size],
-        className,
-      )}
+      className={cn(keyClass(variant, size), className)}
       {...rest}
     >
       {loading ? <Spinner /> : icon}
